@@ -76,3 +76,10 @@ mcporter.json
 
 # Local mise tool pins (for example node/bun) and dev-feature tools
 mise.local.toml
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
