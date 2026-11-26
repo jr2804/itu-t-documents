@@ -131,12 +131,21 @@ def download(
     output_file: args.OutputFile = None,
 ) -> None:
     """Download a document from the ITU-T document management system."""
-    ref = DocumentRef.parse(document)
+    try:
+        ref = DocumentRef.parse(document)
+    except ValueError:
+        print(f"Not a document identifier: {document}")
+        return
     with ItuDocuments() as api:
-        path = api.download(
-            ref,
-            file_format=DocFormat(file_format.upper()),
-            language=DocLanguage(language.upper()),
-            output=Path(output_file) if output_file else None,
-        )
+        try:
+            path = api.download(
+                ref,
+                file_format=DocFormat(file_format.upper()),
+                language=DocLanguage(language.upper()),
+                output=Path(output_file) if output_file else None,
+            )
+        except FileNotFoundError:
+            print(f"{ref.document_id} is not available as {file_format.upper()}-{language.upper()}.")
+            print("Run `itu-doc-downloader documents` to see the documents that are known.")
+            return
     print(f"{path} ({path.stat().st_size} bytes)")
