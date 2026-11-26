@@ -10,9 +10,8 @@ from __future__ import annotations
 import re
 from datetime import date
 
-from lxml import html
-
 from itu_doc_downloader.models.documents import MeetingId
+from itu_doc_downloader.scraping.pages import parse_page
 
 #: Names of the months as used by the ITU-T pages.
 MONTHS: dict[str, int] = {
@@ -119,7 +118,9 @@ def parse_meeting_index(page_html: str) -> list[MeetingInfo]:
     Returns:
         The meetings found, in the order of the page.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return []
     meetings: list[MeetingInfo] = []
     for link in tree.xpath("//a[starts-with(@href, '/md/meeting.asp')]"):
         match = _MEETING_LINK_RE.search(link.get("href") or "")

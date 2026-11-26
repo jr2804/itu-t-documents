@@ -67,6 +67,27 @@ def test_parse_detail_page_title(fixtures_dir: Path) -> None:
     assert detail.parse_title(page) == "Draft agenda for WP1/12: Terminals and multimedia subjective assessment"
 
 
+def test_parse_page_of_broken_markup() -> None:
+    """A page that holds no markup at all is reported as such."""
+    from itu_doc_downloader.scraping.pages import parse_page
+
+    assert parse_page("") is None
+    assert parse_page("   ") is None
+    assert parse_page("<html><body><p>text</p></body></html>") is not None
+    assert parse_page("<html") is None
+
+
+def test_parsers_survive_an_empty_page() -> None:
+    """The ITU-T answers some requests with an empty body."""
+    assert listing.parse_listing("", PERIOD, 12, DocType.CONTRIBUTION) == []
+    assert listing.parse_other_meetings("") == []
+    assert listing.parse_meeting_header("") == {}
+    assert detail.parse_files("") == []
+    assert detail.parse_title("") == ""
+    assert meetings.parse_meeting_index("") == []
+    assert questions.parse_questions("", 12) == []
+
+
 def test_parse_questions_page(fixtures_dir: Path) -> None:
     """The questions page yields the questions with their working group and people."""
     page = _read(fixtures_dir, "questions.html")

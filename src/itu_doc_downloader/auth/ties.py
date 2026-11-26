@@ -21,6 +21,7 @@ recorded request/response chain.
 
 from __future__ import annotations
 
+import base64
 import re
 from collections.abc import Iterator
 
@@ -30,11 +31,27 @@ from lxml import html
 #: Logon endpoint of the ITU-T identity provider.
 LOGON_URL = "https://login.itu.int/my.policy"
 
+#: Endpoint of the access policy that starts the single sign-on handshake.
+SSO_REQUEST_URL = "https://auth.itu.int/F5Networks-SSO-Req"
+
+#: Resource the session is opened for when no document is named. The access
+#: policy only opens a session for a protected resource, so the probe points at
+#: a document file that does not exist.
+SESSION_PROBE_URL = "https://www.itu.int/dms_ties/itu-t/md/25/sg12/r/T25-SG12-R-0000!!MSW-E.docx"
+
 #: Name of the hidden form field carrying a SAML request.
 SAML_REQUEST_FIELD = "SAMLRequest"
 
 #: Name of the hidden form field carrying a SAML response.
 SAML_RESPONSE_FIELD = "SAMLResponse"
+
+#: Markers of the SAML profile endpoints. The identity provider serves the
+#: login on ``login.itu.int`` (``/saml/idp/profile/``), the assertion consumer
+#: service on ``auth.itu.int`` (``/saml/sp/profile/``).
+SAML_PROFILE_MARKERS = ("/saml/", "/profile/")
+
+#: Marker of the assertion consumer service, which accepts the SAML response.
+SAML_CONSUMER_MARKER = "/saml/sp/profile/"
 
 #: Maximum number of redirects and SAML handovers followed during one login.
 _MAX_HOPS = 8
@@ -58,6 +75,19 @@ def _iter_forms(page_html: str) -> Iterator[tuple[str, dict[str, str]]]:
         yield form.get("action") or "", fields
 
 
+def sso_request_url(target: str) -> str:
+    """Return the single sign-on URL of the access policy for a resource.
+
+    Args:
+        target: The protected resource the session is opened for.
+
+    Returns:
+        The absolute URL of the single sign-on endpoint.
+    """
+    encoded = base64.b64encode(target.encode("utf-8")).decode("ascii")
+    return f"{SSO_REQUEST_URL}?SSO_ORIG_URI={encoded}"
+
+
 def find_saml_form(page_html: str, field: str) -> tuple[str, dict[str, str]] | None:
     """Return the first form on the page that carries ``field``.
 
@@ -70,6 +100,26 @@ def find_saml_form(page_html: str, field: str) -> tuple[str, dict[str, str]] | N
     """
     for action, fields in _iter_forms(page_html):
         if field in fields:
+            return action, fields
+    return None
+
+
+def find_profile_form(page_html: str) -> tuple[str, dict[str, str]] | None:
+    """Return the first form on the page that points at a SAML profile endpoint.
+
+    The identity provider answers a successful login with pages that submit
+    themselves: first a form that hands a ``dummy`` value back to the profile
+    endpoint, then a form that posts the SAML response to the assertion
+    consumer service.
+
+    Args:
+        page_html: The HTML of the page.
+
+    Returns:
+        The form action and its fields, or ``None`` when the page has no such form.
+    """
+    for action, fields in _iter_forms(page_html):
+        if all(marker in action for marker in SAML_PROFILE_MARKERS):
             return action, fields
     return None
 
@@ -119,7 +169,9 @@ class TiesAuthenticator:
         """Authenticate so that ``url`` becomes accessible.
 
         The access policy needs to know which resource is requested, therefore
-        the handshake is started by requesting the protected URL itself.
+        the handshake is started by requesting the protected URL itself. When
+        the URL turns out to be public, the handshake is started at the single
+        sign-on endpoint of the access policy instead.
 
         Args:
             url: The protected URL that should become accessible.
@@ -131,6 +183,9 @@ class TiesAuthenticator:
         self._authenticated = False
         response = self._client.get(url, follow_redirects=True)
         saml_form = find_saml_form(response.text, SAML_REQUEST_FIELD)
+        if saml_form is None:
+            response = self._client.get(sso_request_url(url), follow_redirects=True)
+            saml_form = find_saml_form(response.text, SAML_REQUEST_FIELD)
         if saml_form is None:
             raise AuthenticationError(f"no TIES login form found while requesting {url}")
         action, fields = saml_form
@@ -160,6 +215,7 @@ class TiesAuthenticator:
                 credentials or the handshake did not finish.
         """
         current = response
+        reached_consumer = False
         for _ in range(_MAX_HOPS):
             if current.status_code in _REDIRECT_STATUS:
                 location = current.headers.get("location")
@@ -172,7 +228,7 @@ class TiesAuthenticator:
             if message is not None:
                 raise AuthenticationError(f"TIES login failed: {message}")
 
-            form = find_saml_form(current.text, SAML_RESPONSE_FIELD)
+            form = find_profile_form(current.text)
             if form is None:
                 break
             action, fields = form
@@ -182,8 +238,13 @@ class TiesAuthenticator:
                 headers={"Referer": str(current.url)},
                 follow_redirects=False,
             )
+            if SAML_CONSUMER_MARKER in action:
+                # The assertion consumer service accepted the response, the
+                # session is established. What the resource answers afterwards
+                # does not say anything about the login.
+                reached_consumer = True
         else:  # pragma: no cover - defensive, the hop budget is generous
             raise AuthenticationError("TIES login did not complete within the allowed number of hops")
 
-        if current.status_code >= 400:
-            raise AuthenticationError(f"TIES login failed with HTTP {current.status_code}")
+        if not reached_consumer:
+            raise AuthenticationError("TIES login did not reach the assertion consumer service")

@@ -71,11 +71,53 @@ cache_dir = "~/.cache/itu-doc-downloader"
 timeout = 30
 ```
 
+Both are optional; the environment wins over the file. A third, lowest priority
+source is a [secretspec](https://github.com/cachix/secretspec) provider — see
+[Credentials from secretspec](#credentials-from-secretspec).
+
 Check that the login works with:
 
 ```bash
 uv run itu-doc-downloader auth
 ```
+
+### Credentials from secretspec
+
+[secretspec](https://github.com/cachix/secretspec) keeps secrets in a provider
+(keyring, 1Password, Vault, a dotenv file, …) and declares them in a
+`secretspec.toml`. Install the optional extra and declare the two TIES secrets
+under the provider alias `itu-ties`:
+
+```bash
+uv sync --extra secretspec
+```
+
+```toml
+# secretspec.toml
+[project]
+name = "itu-doc-downloader"
+revision = "1.0"
+
+[providers]
+itu-ties = "keyring://"
+
+[profiles.default]
+ITU_TIES_USERNAME = { description = "TIES account", providers = ["itu-ties"] }
+ITU_TIES_PASSWORD = { description = "TIES password", providers = ["itu-ties"] }
+```
+
+Store the values once, then run the downloader from the directory that holds the
+manifest:
+
+```bash
+secretspec set ITU_TIES_USERNAME
+secretspec set ITU_TIES_PASSWORD
+uv run itu-doc-downloader auth
+```
+
+secretspec is consulted only when neither `ITU_TIES_USERNAME`/`ITU_TIES_PASSWORD`
+nor the configuration file provide the credentials. Without the extra, or without
+a matching provider, it is ignored silently.
 
 ## The ITU-T numbering scheme
 

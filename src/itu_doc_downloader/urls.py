@@ -55,7 +55,7 @@ def study_group_page_url(period: StudyPeriod, study_group: int) -> str:
     Returns:
         The absolute URL of the study group page.
     """
-    return f"{BASE_URL}/en/ITU-T/studygroups/{period.label}/{study_group}/Pages/default.aspx"
+    return f"{BASE_URL}/en/ITU-T/studygroups/{period.label}/{study_group:02d}/Pages/default.aspx"
 
 
 def questions_url(study_group: int, index: int) -> str:
@@ -95,7 +95,7 @@ def meeting_summary_url(period: StudyPeriod, study_group: int, meeting: MeetingI
     Returns:
         The absolute URL of the meeting summary page.
     """
-    return f"{BASE_URL}/md/{period.code}-SG{study_group}-{meeting.code}/sum/en"
+    return f"{BASE_URL}/md/{period.code}-SG{study_group:02d}-{meeting.code}/sum/en"
 
 
 def listing_url(
@@ -118,7 +118,7 @@ def listing_url(
     Returns:
         The absolute URL of the listing page.
     """
-    parts = [period.code, f"SG{study_group}"]
+    parts = [period.code, f"SG{study_group:02d}"]
     if meeting is not None:
         parts.append(meeting.code)
     parts.append(doc_type.value)

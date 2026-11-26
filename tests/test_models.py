@@ -70,6 +70,20 @@ def test_document_ref_round_trip(
     assert ref.document_id == document_id
 
 
+def test_single_digit_study_groups_are_zero_padded() -> None:
+    """The ITU-T writes study group 5 as ``SG05``."""
+    ref = DocumentRef(
+        study_period=StudyPeriod(start_year=2025, end_year=2028),
+        study_group=5,
+        doc_type=DocType.CONTRIBUTION,
+        number=538,
+    )
+
+    assert ref.study_group_code == "SG05"
+    assert ref.document_id == "T25-SG05-C-0538"
+    assert ref.download_url(DocFormat.WORD, DocLanguage.ENGLISH) == ("https://www.itu.int/dms_ties/itu-t/md/25/sg05/c/T25-SG05-C-0538!!MSW-E.docx")
+
+
 def test_document_ref_rejects_garbage() -> None:
     """An unparsable document identifier is rejected."""
     with pytest.raises(ValueError):

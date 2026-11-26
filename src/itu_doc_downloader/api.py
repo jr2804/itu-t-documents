@@ -38,7 +38,7 @@ from itu_doc_downloader.storage.files import FileCache
 from itu_doc_downloader.urls import detail_url, listing_url, period_index, questions_url
 
 #: Template of the path of the meeting index page of a study group.
-MEETING_INDEX_PATH = "/md/{prefix}-SG{group}/en"
+MEETING_INDEX_PATH = "/md/{prefix}-{group}/en"
 
 
 @dataclass(frozen=True)
@@ -122,7 +122,7 @@ class ItuDocuments:
         Returns:
             The meetings found, in the order of the ITU-T pages.
         """
-        url = f"https://www.itu.int{MEETING_INDEX_PATH.format(prefix=study_period.code, group=study_group)}"
+        url = f"https://www.itu.int{MEETING_INDEX_PATH.format(prefix=study_period.code, group=f'SG{study_group:02d}')}"
         page = self.client.get_text(url)
         return meetings_scraper.parse_meeting_index(page)
 
@@ -427,7 +427,7 @@ class ItuDocuments:
         if target is None:
             raise FileNotFoundError(f"{ref.document_id} is not available as {file_format.value}-{language.value}")
 
-        session = self.client.authenticate()
+        session = self.client.authenticate(target.url)
         response = session.get(target.url, follow_redirects=True)
         response.raise_for_status()
         content = response.content

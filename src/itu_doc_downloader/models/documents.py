@@ -159,14 +159,23 @@ class DocumentRef(BaseModel):
         )
 
     @property
+    def study_group_code(self) -> str:
+        """The study group part of a DMS identifier, e.g. ``SG05``.
+
+        The ITU-T writes single digit study groups with a leading zero, so
+        study group 5 becomes ``SG05``.
+        """
+        return f"SG{self.study_group:02d}"
+
+    @property
     def document_id(self) -> str:
         """The DMS identifier of this document."""
         if self.doc_type is DocType.TEMPORARY_DOCUMENT:
             if self.meeting is None:
                 raise ValueError("temporary documents require a meeting")
             subtype = self.subtype or "GEN"
-            return f"{self.study_period.code}-SG{self.study_group}-{self.meeting.code}-{self.doc_type.value}-{subtype}-{self.number:04d}"
-        return f"{self.study_period.code}-SG{self.study_group}-{self.doc_type.value}-{self.number:04d}"
+            return f"{self.study_period.code}-{self.study_group_code}-{self.meeting.code}-{self.doc_type.value}-{subtype}-{self.number:04d}"
+        return f"{self.study_period.code}-{self.study_group_code}-{self.doc_type.value}-{self.number:04d}"
 
     @property
     def display_number(self) -> str:
@@ -192,7 +201,7 @@ class DocumentRef(BaseModel):
         """
         segment, visibility = _TYPE_PATHS[self.doc_type]
         extension = _FORMAT_EXTENSIONS[file_format]
-        path = f"/dms_{visibility.value}/itu-t/md/{self.study_period.short_code}/sg{self.study_group}/{segment}"
+        path = f"/dms_{visibility.value}/itu-t/md/{self.study_period.short_code}/sg{self.study_group:02d}/{segment}"
         if self.doc_type is DocType.TEMPORARY_DOCUMENT:
             if self.meeting is None:
                 raise ValueError("temporary documents require a meeting")

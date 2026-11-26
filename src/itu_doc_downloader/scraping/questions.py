@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import re
 
-from lxml import html
 from lxml.html import HtmlElement
 
 from itu_doc_downloader.models.enums import Role
 from itu_doc_downloader.models.questions import Person, Question, WorkingGroup
+from itu_doc_downloader.scraping.pages import parse_page
 
 #: Pattern of the question and working group cell, e.g. ``Q5/12  (WP1/12)``.
 _QUESTION_RE = re.compile(r"Q(?P<number>\d+)\s*/\s*(?P<group>\d+)\s*(?:\((?P<working_group>[^)]+)\))?")
@@ -72,7 +72,9 @@ def parse_questions(page_html: str, study_group: int) -> list[Question]:
     Returns:
         The questions found, ordered by question number.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return []
     people: dict[int, list[Person]] = {}
     titles: dict[int, str] = {}
     working_groups: dict[int, str] = {}

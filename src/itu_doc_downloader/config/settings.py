@@ -1,11 +1,14 @@
 """Configuration and credential resolution.
 
-Settings are resolved from three layers, highest priority first:
+Settings are resolved from four layers, highest priority first:
 
 1. explicit values passed to :class:`Settings`,
 2. environment variables prefixed with ``ITU_`` (``ITU_TIES_USERNAME``,
    ``ITU_TIES_PASSWORD``, ``ITU_CACHE_DIR``, …),
-3. the TOML configuration file ``~/.config/itu-doc-downloader/config.toml``.
+3. the TOML configuration file ``~/.config/itu-doc-downloader/config.toml``,
+4. a `secretspec <https://github.com/cachix/secretspec>`_ provider, when the
+   optional ``secretspec`` extra is installed — see
+   :mod:`itu_doc_downloader.config.secretspec_source`.
 
 The configuration file may hold credentials as well as globally stored
 values:
@@ -23,6 +26,7 @@ values:
 
 from __future__ import annotations
 
+import os
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -34,6 +38,8 @@ from pydantic_settings import (
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
+
+from itu_doc_downloader.config.secretspec_source import SecretspecConfigSource
 
 #: Default directory holding the configuration file.
 DEFAULT_CONFIG_DIR = Path("~/.config/itu-doc-downloader")
@@ -59,8 +65,15 @@ _TOML_SECTION_MAP: dict[str, dict[str, str]] = {
 
 
 def default_config_file() -> Path:
-    """Return the path of the configuration file in the user's config directory."""
-    return DEFAULT_CONFIG_DIR.expanduser() / CONFIG_FILE_NAME
+    """Return the path of the configuration file in the user's config directory.
+
+    The directory can be moved with the ``ITU_CONFIG_DIR`` environment
+    variable, which is read here because the setting sources are built before
+    the settings themselves are resolved.
+    """
+    config_dir = os.environ.get("ITU_CONFIG_DIR")
+    directory = Path(config_dir).expanduser() if config_dir else DEFAULT_CONFIG_DIR.expanduser()
+    return directory / CONFIG_FILE_NAME
 
 
 class TomlConfigSource(PydanticBaseSettingsSource):
@@ -148,12 +161,13 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """Order the setting sources: explicit values, environment, TOML file."""
+        """Order the setting sources: explicit values, environment, TOML file, secretspec."""
         return (
             init_settings,
             env_settings,
             TomlConfigSource(settings_cls, default_config_file()),
             file_secret_settings,
+            SecretspecConfigSource(settings_cls),
         )
 
     @property

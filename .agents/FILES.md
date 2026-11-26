@@ -31,6 +31,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | TIES handshake         | `src/itu_doc_downloader/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
 | HTTP access            | `src/itu_doc_downloader/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
 | Configuration           | `src/itu_doc_downloader/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |
+| secretspec credentials  | `src/itu_doc_downloader/config/secretspec_source.py`           | `secretspec_credentials`, `SecretspecConfigSource` |
 | Metadata store         | `src/itu_doc_downloader/storage/database.py`                   | `MetadataStore`, the SQLModel tables            |
 | Document file cache    | `src/itu_doc_downloader/storage/files.py`                      | `FileCache`                                    |
 | URL builders           | `src/itu_doc_downloader/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |

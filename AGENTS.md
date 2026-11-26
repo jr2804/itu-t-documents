@@ -106,7 +106,9 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   store and the file cache are the sources of truth for cached data.
 - New behaviour needs a test — the coverage gate is 100%.
 - Never commit credentials. The configuration file lives in
-  `~/.config/itu-doc-downloader`, outside the repository.
+  `~/.config/itu-doc-downloader`, outside the repository. TIES credentials
+  resolve environment → `config.toml` → secretspec; the secretspec layer is
+  optional and must stay inert when the extra is not installed.
 
 ## Child DOX Index
 

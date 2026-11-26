@@ -9,11 +9,11 @@ from __future__ import annotations
 import re
 from datetime import date
 
-from lxml import html
 from lxml.html import HtmlElement
 
 from itu_doc_downloader.models.documents import DocumentMetadata, DocumentRef, MeetingId, StudyPeriod
 from itu_doc_downloader.models.enums import DocType
+from itu_doc_downloader.scraping.pages import parse_page
 
 #: Pattern of the question filter links, e.g. ``…&question=Q5/12``.
 _QUESTION_RE = re.compile(r"question=(?P<number>Q\d+)/(?P<group>\d+)", re.IGNORECASE)
@@ -58,7 +58,9 @@ def parse_listing(
     Returns:
         The metadata of every document found on the page.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return []
     documents: list[DocumentMetadata] = []
     for row in tree.xpath("//tr[count(td) > 3][.//input[@name='chkFile']]"):
         document = _parse_row(row, study_period, study_group, doc_type, meeting)
@@ -153,7 +155,9 @@ def parse_other_meetings(page_html: str) -> list[MeetingId]:
     Returns:
         The meetings found, ordered as on the page.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return []
     meetings: list[MeetingId] = []
     for cell in tree.xpath("//td[contains(., 'Other Meetings')]"):
         for link in cell.xpath(".//a"):
@@ -181,7 +185,9 @@ def parse_meeting_header(page_html: str) -> dict[str, str]:
     Returns:
         The found values, with missing entries left out.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return {}
     header: dict[str, str] = {}
     text = _clean(tree.text_content())
 

@@ -211,7 +211,7 @@ def test_authenticator_reports_a_failed_status() -> None:
 
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
 
-    with pytest.raises(AuthenticationError, match="HTTP 403"):
+    with pytest.raises(AuthenticationError, match="assertion consumer service"):
         authenticator.login_for("https://www.itu.int/md/")
 
     client.close()

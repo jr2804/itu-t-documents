@@ -47,6 +47,20 @@ def test_listing_url_without_a_meeting() -> None:
     assert url == "https://www.itu.int/md/meetingdoc.asp?lang=en&parent=T25-SG12-COL"
 
 
+def test_listing_url_of_a_single_digit_study_group() -> None:
+    """A single digit study group is zero padded in the identifier."""
+    url = listing_url(PERIOD, 5, DocType.CONTRIBUTION, MeetingId.from_code("260609"))
+
+    assert url == "https://www.itu.int/md/meetingdoc.asp?lang=en&parent=T25-SG05-260609-C"
+
+
+def test_study_group_page_url_of_a_single_digit_study_group() -> None:
+    """A single digit study group is zero padded in the page path."""
+    url = study_group_page_url(PERIOD, 5)
+
+    assert url == "https://www.itu.int/en/ITU-T/studygroups/2025-2028/05/Pages/default.aspx"
+
+
 def test_detail_url() -> None:
     """The detail page of a document is addressed by its identifier."""
     assert detail_url("T25-SG12-C-0192") == ("https://www.itu.int/md/meetingdoc.asp?lang=en&parent=T25-SG12-C-0192")

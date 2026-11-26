@@ -18,7 +18,7 @@ import httpx
 from hishel import SqliteStorage
 from hishel.httpx import CacheClient
 
-from itu_doc_downloader.auth.ties import AuthenticationError, TiesAuthenticator
+from itu_doc_downloader.auth.ties import SESSION_PROBE_URL, AuthenticationError, TiesAuthenticator
 from itu_doc_downloader.config.settings import Settings
 
 #: Name of the SQLite file holding the raw HTTP cache.
@@ -48,8 +48,15 @@ class ItuClient(Protocol):
         """Return the decoded body of a page."""
         ...
 
-    def authenticate(self) -> httpx.Client:
-        """Log in and return the authenticated client."""
+    def authenticate(self, target: str | None = None) -> httpx.Client:
+        """Log in and return the authenticated client.
+
+        Args:
+            target: The protected resource the session is opened for.
+
+        Returns:
+            The client that carries the session.
+        """
         ...
 
     def close(self) -> None:
@@ -137,8 +144,13 @@ class ItuHttpClient:
         response.raise_for_status()
         return decode(response)
 
-    def authenticate(self) -> httpx.Client:
+    def authenticate(self, target: str | None = None) -> httpx.Client:
         """Log in to the DMS and return the authenticated client.
+
+        Args:
+            target: The protected resource the session is opened for. The
+                access policy only opens a session for a protected resource, so
+                the default points at a document file that does not exist.
 
         Returns:
             The session client carrying a valid TIES session.
@@ -157,7 +169,8 @@ class ItuHttpClient:
                 self.settings.ties_username or "",
                 self.settings.ties_password.get_secret_value() if self.settings.ties_password else "",
             )
-        self._authenticator.login_for("https://www.itu.int/md/")
+        if not self._authenticator.is_authenticated:
+            self._authenticator.login_for(target or SESSION_PROBE_URL)
         return self._session_client
 
     def close(self) -> None:

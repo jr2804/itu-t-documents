@@ -221,7 +221,8 @@ def test_download_uses_the_cache(tmp_path: Path, fake_client: FakeClient) -> Non
 
     again = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
     assert again == path
-    assert len([url for url in client.requested if "dms_inf" in url]) == 1
+    assert len([url for url in client.requested if url.endswith(".docx")]) == 1
+    assert client.login_targets == [client.requested[-1]]
 
 
 def test_download_writes_to_an_output_path(tmp_path: Path, fake_client: FakeClient) -> None:

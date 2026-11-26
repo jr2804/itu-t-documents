@@ -11,9 +11,8 @@ from __future__ import annotations
 import re
 from datetime import date
 
-from lxml import html
-
 from itu_doc_downloader.models.documents import DocumentFile
+from itu_doc_downloader.scraping.pages import parse_page
 
 #: Pattern of the format and language suffix of a download URL.
 _SUFFIX_RE = re.compile(r"!!(?P<format>[A-Z0-9]+)-(?P<language>[A-Z])\.(?P<extension>[a-z0-9]+)$")
@@ -35,7 +34,9 @@ def parse_files(page_html: str, base_url: str = "https://www.itu.int") -> list[D
     Returns:
         One entry per available rendition.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return []
     files: list[DocumentFile] = []
     seen: set[str] = set()
     for row in tree.xpath("//tr[count(td) > 1][.//a[contains(@href, '!!')]]"):
@@ -88,7 +89,9 @@ def parse_title(page_html: str) -> str:
     Returns:
         The title of the document, without the document number.
     """
-    tree = html.fromstring(page_html)
+    tree = parse_page(page_html)
+    if tree is None:
+        return ""
     for cell in tree.xpath("//td[@colspan]"):
         text = re.sub(r"\s+", " ", cell.text_content()).strip()
         match = _TITLE_RE.match(text)

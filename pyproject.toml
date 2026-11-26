@@ -38,6 +38,9 @@ dev = [
 [project.scripts]
 itu-doc-downloader = "itu_doc_downloader.cli.app:main"
 
+[project.optional-dependencies]
+secretspec = ["secretspec>=0.21.1"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/itu_doc_downloader"]
 

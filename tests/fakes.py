@@ -28,6 +28,7 @@ class FakeClient(ItuClient):
         """
         self.fixtures_dir = fixtures_dir
         self.requested: list[str] = []
+        self.login_targets: list[str] = []
         self.session = httpx.Client(
             transport=httpx.MockTransport(self._document_handler()),
             follow_redirects=True,
@@ -59,8 +60,17 @@ class FakeClient(ItuClient):
             return self._read("listing_temporary_documents.html")
         return self._read("detail_temporary_document.html")
 
-    def authenticate(self) -> httpx.Client:
-        """Return the authenticated session."""
+    def authenticate(self, target: str | None = None) -> httpx.Client:
+        """Return the authenticated session.
+
+        Args:
+            target: The protected resource the session is opened for.
+
+        Returns:
+            The client that carries the session.
+        """
+        if target is not None:
+            self.login_targets.append(target)
         return self.session
 
     def close(self) -> None:

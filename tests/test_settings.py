@@ -76,6 +76,19 @@ def test_environment_overrides_the_configuration_file(monkeypatch, tmp_path: Pat
     assert settings.ties_username == "env@example.org"
 
 
+def test_configuration_directory_can_be_moved(monkeypatch, tmp_path: Path) -> None:
+    """The configuration directory can be moved with an environment variable."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / CONFIG_FILE_NAME).write_text('[credentials]\nusername = "file@example.org"\n', encoding="utf-8")
+    monkeypatch.setenv("ITU_CONFIG_DIR", str(config_dir))
+
+    settings = Settings()
+
+    assert settings.ties_username == "file@example.org"
+    assert settings.config_file == config_dir / CONFIG_FILE_NAME
+
+
 def test_missing_configuration_file_is_ignored(monkeypatch, tmp_path: Path) -> None:
     """A missing configuration file is not an error."""
     monkeypatch.setattr(

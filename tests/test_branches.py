@@ -18,8 +18,12 @@ from tests.fakes import FakeClient
 SAML_REQUEST_PAGE = f"""<html><body><form action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
 <input type="hidden" name="{SAML_REQUEST_FIELD}" value="PHNhbWw+"/></form></body></html>"""
 
-SAML_RESPONSE_PAGE = """<html><body><form action="https://auth.itu.int/saml/idp/profile/post/acs">
+SAML_RESPONSE_PAGE = """<html><body><form action="https://auth.itu.int/saml/sp/profile/post/acs">
 <input type="hidden" name="{SAML_RESPONSE_FIELD}" value="PHNhbWw+"/></form></body></html>"""
+
+DUMMY_PAGE = """<html><body onload="document.forms[0].submit()">
+<form method="POST" action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
+<input type="hidden" name="dummy" value="92b6ecc7"/></form></body></html>"""
 
 
 def _itu_handler(request: httpx.Request) -> httpx.Response:
@@ -28,9 +32,11 @@ def _itu_handler(request: httpx.Request) -> httpx.Response:
     if request.method == "GET" and ("auth.itu.int" in url or url.startswith("https://www.itu.int/md/")):
         return httpx.Response(200, text=SAML_REQUEST_PAGE)
     if request.method == "POST" and "redirectorpost" in url:
-        return httpx.Response(200, text="<html><body>logon</body></html>")
-    if request.method == "POST" and url == LOGON_URL:
+        if b"SAMLRequest" in request.content:
+            return httpx.Response(200, text="<html><body>logon</body></html>")
         return httpx.Response(200, text=SAML_RESPONSE_PAGE)
+    if request.method == "POST" and url == LOGON_URL:
+        return httpx.Response(200, text=DUMMY_PAGE)
     if request.method == "POST" and "post/acs" in url:
         return httpx.Response(302, headers={"location": "https://www.itu.int/md/"})
     return httpx.Response(200, content=b"page")
