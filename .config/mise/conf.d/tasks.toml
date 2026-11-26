@@ -1,0 +1,10 @@
+[tasks.dev]
+description = "Install development dependencies"
+run = "uv sync -U --dev --all-extras --all-groups"
+
+[tasks.bump]
+description = "Bump dependency bounds and upgrade all dependency groups"
+run = [
+  "uv-bump",
+  "uv sync -U --dev --all-extras --all-groups",
+]

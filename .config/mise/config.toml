@@ -1,0 +1,37 @@
+# mise configuration
+# Task definitions are in conf.d/*.toml files (automatically loaded by mise)
+[tools]
+# Node.js and Bun are intentionally not activated by default: they are usually
+# available system-wide, and a second mise-managed copy duplicates them. This is
+# especially critical for the installers/downloaders npm/npx/bun/bunx, where
+# duplicate copies commonly collide on PATH. If you want mise to manage them,
+# put them in gitignored mise.local.toml or enable them globally instead:
+#   mise use -g node
+#   mise use -g bun
+# node = "latest"
+# bun = "latest"
+
+# Dependency management
+"pypi:uv-bump" = "latest"
+
+
+# Content-aware comparison for code, images, fonts, PDFs, archives, and more
+"github:ivankovic/omnidiff" = "latest"
+
+
+# Linter/formatter/type checker tools
+"ruff" = "latest"
+"ty" = "latest"
+"rumdl" = "latest"
+"pypi:git+https://github.com/jr2804/pyreorder.git" = "latest"
+"pypi:codespell" = "latest"
+
+# CLI tools rg and tree-cli -> use `rg --files | tree-cli --fromfile` to get a nice tree view of the project files
+ripgrep = "latest"
+"github:peteretelej/tree" = { version = "latest", rename_exe = "tree-cli" }
+
+[settings.npm]
+package_manager = "bun"
+
+[settings.pypi]
+uvx = true

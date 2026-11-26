@@ -1,0 +1,16 @@
+enabled,category,repo,skill
+0,coding,https://github.com/jr2804/pyreorder,
+0,coding,https://github.com/jr2804/prompts,python-ultimate
+0,coding,https://github.com/alinaqi/claude-bootstrap,code-deduplication
+0,coding,https://github.com/s2005/uv-skill,
+0,coding,https://github.com/shadcn/improve,
+0,docs,plannotator/effective-html,
+0,docs,adewale/good-readme,
+0,docs,https://github.com/nicobailon/visual-explainer,
+0,docs,https://github.com/oil-oil/beautify-github-readme,
+0,docs,https://codeberg.org/jr2804/copier-uv-plus.git,project-docs
+0,figures,https://github.com/dkyazzentwatwa/chatgpt-skills,svg-precision-skill
+0,figures,https://github.com/jr2804/prompts,scientific-figures
+0,figures,https://codeberg.org/jr2804/copier-uv-plus.git,mermaid-diagrams
+0,rust,https://codeberg.org/jr2804/copier-uv-plus.git,rust-pyo3-bindings
+0,rust,https://codeberg.org/jr2804/copier-uv-plus.git,rust-dsp-stack
