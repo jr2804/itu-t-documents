@@ -144,3 +144,41 @@ class _SettingsWithoutCredentials:
     def has_credentials(self) -> bool:
         """Report that no credentials are available."""
         return False
+
+
+def test_download_command_with_an_invalid_identifier(capsys: pytest.CaptureFixture[str]) -> None:
+    """The download command reports an identifier it cannot read."""
+    commands.download("nonsense", file_format="PDF", language="E")
+
+    assert "Not a document identifier" in capsys.readouterr().out
+
+
+def test_download_command_with_an_unavailable_rendition(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The download command reports a rendition the ITU-T does not offer."""
+    from itu_doc_downloader.cli import commands
+
+    class FakeApi:
+        """A stand-in for the API."""
+
+        def download(self, ref, file_format, language, output=None) -> Path:
+            """Refuse the download."""
+            raise FileNotFoundError(f"{ref.document_id} is not available")
+
+        def __enter__(self) -> FakeApi:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def close(self) -> None:
+            """Close the fake API."""
+
+    monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: FakeApi())
+
+    commands.download("T25-SG12-C-0192", file_format="PDF", language="E")
+
+    out = capsys.readouterr().out
+    assert "is not available as PDF-E" in out
