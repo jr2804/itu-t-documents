@@ -63,6 +63,8 @@ mcporter.json
 .pi/
 .codex/
 .claude/
+.cursor/
+CLAUDE.md
 .vscode/
 .opencode/
 

@@ -28,6 +28,7 @@ select = [
 ]
 extend-select = [
     "RUF022",  # unsorted-dunder-all
+    "PLR0911", # too-many-return-statements
     "PLR6301", # no-self-use
     "PLC0415",
     "E402",    # module-import-not-at-top-of-file
@@ -60,8 +61,19 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-# Use of assert statements in tests is pytest default behavior
-"tests/**/*.py" = ["S101"]
+# Tests use assert statements, build throw-away fakes of the production
+# interfaces and reference credentials and paths as literals.
+"tests/**/*.py" = [
+    "S101",    # assert statements
+    "S106",    # hardcoded password
+    "S108",    # hardcoded temporary file
+    "ANN001",  # missing type annotation for function argument
+    "ANN202",  # missing return type for private function
+    "PLC0415", # import outside top-level
+    "PLR0911", # too-many-return-statements
+    "PLR6301", # no-self-use
+    "PT011",   # pytest.raises without a match
+]
 
 [lint.pylint]
 max-locals = 20

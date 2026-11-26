@@ -2,74 +2,141 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from pathlib import Path
+
+from itu_doc_downloader.api import DocumentRecord, ItuDocuments
+from itu_doc_downloader.auth.ties import AuthenticationError
 from itu_doc_downloader.cli import args
+from itu_doc_downloader.config.settings import Settings
+from itu_doc_downloader.http.client import ItuHttpClient
+from itu_doc_downloader.mcp_server import main as run_mcp
+from itu_doc_downloader.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
 
-# ═══════════════════════════════════════════════════════════════════════════
-# DEMO COMMANDS — REPLACE ME!
-#
-# `default`, `greet` and `add` only demonstrate the Cyclopts CLI plumbing:
-# argument definitions in args.py, command functions in this file, and
-# registration in app.py. They are NOT real functionality of this project.
-#
-# To add your real commands:
-#   1. Delete the demo commands below (or repurpose `default`).
-#   2. Write each real command as a plain function in this file, using the
-#      argument types from args.py and a docstring (it becomes --help text).
-#   3. Register each command in app.py: `app.command(commands.your_cmd)`.
-#
-# Do NOT add @app.command decorators here and do NOT import `app` from
-# app.py: that creates a circular import and makes pyreorder reorder this
-# module into a broken state. Keep every command a plain top-level function.
-# ═══════════════════════════════════════════════════════════════════════════
 
-# Default command (runs when no command provided)
+def _period(label: str) -> StudyPeriod:
+    """Return the study period named by the user."""
+    return StudyPeriod.parse(label)
+
+
+def _print_documents(records: Sequence[DocumentRecord]) -> None:
+    """Print document records as a table."""
+    for record in records:
+        questions = ",".join(str(number) for number in record.questions) or "-"
+        sources = "; ".join(record.sources) or "-"
+        print(f"{record.document_id:<32} {record.doc_type.value:<4} Q{questions:<10} {record.title[:60]:<62} {sources[:40]}")
 
 
 def default() -> None:
-    """Default command showing welcome message."""
-    print("Welcome to ITU-T Document Downloader!")
-    print("Use --help to see available commands.")
+    """Show a short introduction to the ITU-T document downloader."""
+    print("itu-doc-downloader — access the documents of ITU-T study group meetings.")
+    print("Use --help to see the available commands.")
 
 
-# Greet command
+def mcp() -> None:
+    """Run the MCP server over stdio."""
+    run_mcp()
 
 
-def greet(
-    name: args.NameArg,
-    *,
-    input_file: args.InputFileArg = None,
-    output_file: args.OutputFile = None,
-    cache: args.Cache = True,
+def auth() -> None:
+    """Check whether TIES credentials are configured and usable."""
+    settings = Settings()
+    if not settings.has_credentials():
+        print("No TIES credentials found.")
+        print(f"Set ITU_TIES_USERNAME and ITU_TIES_PASSWORD, or store them in {settings.config_file}.")
+        return
+
+    with ItuHttpClient(settings) as client:
+        try:
+            client.authenticate()
+        except AuthenticationError as error:
+            print(f"TIES login failed: {error}")
+            return
+    print("TIES login succeeded.")
+
+
+def meetings(
+    study_group: args.StudyGroup = 12,
+    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
 ) -> None:
-    """Greet a person by name."""
-    if input_file:
-        # Read names from a file or stdin ("-")
-        names = [line.strip() for line in input_file.read_text(encoding="utf-8").splitlines() if line.strip()]
-        for n in names:
-            print(f"Hello, {n}!")
-    else:
-        print(f"Hello, {name}!")
-
-    # Show option values (for demonstration)
-    if output_file:
-        print(f"Output file: {output_file}")
-    print(f"Cache: {'enabled' if cache else 'disabled'}")
+    """List the meetings of a study group."""
+    with ItuDocuments() as api:
+        for meeting in api.list_meetings(study_group, _period(study_period)):
+            print(f"{meeting.code}  {meeting.label}")
 
 
-# Add command
+def questions(
+    study_group: args.StudyGroup = 12,
+    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+) -> None:
+    """List the questions under study of a study group."""
+    with ItuDocuments() as api:
+        for question in api.list_questions(study_group, _period(study_period)):
+            people = ", ".join(f"{person.name} ({person.role.value})" for person in question.people)
+            print(f"{question.code:<8} {question.working_group.code:<10} {question.title}")
+            if people:
+                print(f"{'':8} {people}")
 
 
-def add(
-    number1: args.NumberArg1,
-    number2: args.NumberArg2,
+def sync(
+    study_group: args.StudyGroup = 12,
+    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    meeting: args.Meeting | None = None,
+    doc_type: args.DocTypeOption = None,
+) -> None:
+    """Fetch the documents of a meeting and store them in the local database."""
+    types = (DocType(doc_type),) if doc_type else (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT)
+    with ItuDocuments() as api:
+        period = _period(study_period)
+        codes = [meeting] if meeting else [item.code for item in api.list_meetings(study_group, period)]
+        total = 0
+        for code in codes:
+            stored = api.sync_meeting(study_group, MeetingId.from_code(code), period, types)
+            total += stored
+            print(f"{code}: {stored} documents")
+        print(f"{total} documents stored in {api.store.database_path}")
+
+
+def documents(
+    study_group: args.StudyGroup = 12,
     *,
+    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    meeting: args.Meeting | None = None,
+    doc_type: args.DocTypeOption = None,
+    question: args.Question = None,
+    source: args.Source = None,
+    limit: args.Limit = None,
+) -> None:
+    """Search the documents of a study group."""
+    with ItuDocuments() as api:
+        records = api.find_documents(
+            study_group=study_group,
+            doc_type=DocType(doc_type) if doc_type else None,
+            meeting=meeting,
+            question=question,
+            source=source,
+            limit=limit,
+        )
+    if not records:
+        print("No documents found. Run `itu-doc-downloader sync` first.")
+        return
+    _print_documents(records)
+
+
+def download(
+    document: args.DocumentId,
+    file_format: args.FileFormat = "PDF",
+    language: args.Language = "E",
     output_file: args.OutputFile = None,
 ) -> None:
-    """Add two numbers together."""
-    result = number1 + number2
-    print(f"The sum of {number1} and {number2} is {result}")
-
-    if output_file:
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(str(result))
-        print(f"Result written to {output_file}")
+    """Download a document from the ITU-T document management system."""
+    ref = DocumentRef.parse(document)
+    with ItuDocuments() as api:
+        path = api.download(
+            ref,
+            file_format=DocFormat(file_format.upper()),
+            language=DocLanguage(language.upper()),
+            output=Path(output_file) if output_file else None,
+        )
+    print(f"{path} ({path.stat().st_size} bytes)")

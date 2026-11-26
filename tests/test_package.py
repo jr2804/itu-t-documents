@@ -1,23 +1,16 @@
-"""Smoke tests for the generated package scaffold."""
+"""Smoke tests for the package scaffold and its CLI wiring."""
 
 from __future__ import annotations
 
-
 import runpy
 from importlib.metadata import PackageNotFoundError
-from pathlib import Path
 
 import pytest
-from cyclopts.types import StdioPath
-
 
 import itu_doc_downloader
 from itu_doc_downloader import __about__
-
-
 from itu_doc_downloader.cli import app as cli_app
 from itu_doc_downloader.cli import commands
-
 
 
 def test_package_exposes_version() -> None:
@@ -25,6 +18,12 @@ def test_package_exposes_version() -> None:
     assert itu_doc_downloader.__version__
     assert __about__.__title__ == "itu_doc_downloader"
 
+
+def test_package_exports_the_public_api() -> None:
+    """The package exports the objects of the public API."""
+    assert itu_doc_downloader.ItuDocuments.__name__ == "ItuDocuments"
+    assert itu_doc_downloader.DocumentRef.__name__ == "DocumentRef"
+    assert itu_doc_downloader.DocType.CONTRIBUTION == "C"
 
 
 def test_cli_version_uses_metadata() -> None:
@@ -63,49 +62,15 @@ def test_dunder_main_invokes_main(monkeypatch: pytest.MonkeyPatch) -> None:
     assert invoked == [True]
 
 
+def test_cli_registers_every_command() -> None:
+    """Every command of the package is registered with the CLI."""
+    registered = set(cli_app.app._registered_commands)
+
+    assert {"auth", "documents", "download", "mcp", "meetings", "questions", "sync"} <= registered
+
+
 def test_default_command(capsys: pytest.CaptureFixture[str]) -> None:
     """The default command prints the welcome message."""
     commands.default()
 
-    assert "Welcome" in capsys.readouterr().out
-
-
-def test_greet_command(capsys: pytest.CaptureFixture[str]) -> None:
-    """The greet command prints the supplied name."""
-    commands.greet("Ada")
-
-    out = capsys.readouterr().out
-    assert "Hello, Ada!" in out
-    assert "Cache: enabled" in out
-
-
-def test_greet_command_reads_names_and_writes_output(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """The greet command handles an input file and an output path."""
-    names = StdioPath(tmp_path / "names.txt")
-    names.write_text("Ada\nBob\n", encoding="utf-8")
-    output = tmp_path / "greeting.txt"
-
-    commands.greet("ignored", input_file=names, output_file=str(output), cache=False)
-
-    out = capsys.readouterr().out
-    assert "Hello, Ada!" in out
-    assert "Hello, Bob!" in out
-    assert f"Output file: {output}" in out
-    assert "Cache: disabled" in out
-
-
-def test_add_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The add command prints the sum and can write it to a file."""
-    commands.add(1.5, 2.5)
-
-    assert "The sum of 1.5 and 2.5 is 4.0" in capsys.readouterr().out
-
-    output = tmp_path / "sum.txt"
-    commands.add(1, 2, output_file=str(output))
-
-    assert output.read_text(encoding="utf-8") == "3"
-
-
+    assert "itu-doc-downloader" in capsys.readouterr().out

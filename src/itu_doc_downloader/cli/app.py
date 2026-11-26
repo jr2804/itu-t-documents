@@ -28,11 +28,15 @@ app = App(
 # Register commands. Commands are plain functions in commands.py — no
 # @app.command decorators there, no import of `app`: this avoids the
 # circular import (commands.py <-> app.py) and keeps pyreorder from
-# re-sorting this file into a broken state. Replace the demo commands
-# below with your own: `app.command(commands.your_command)`.
-app.command(commands.greet)
-app.command(commands.add)
+# re-sorting this file into a broken state.
 app.command(commands.default, name="default")
+app.command(commands.auth)
+app.command(commands.download)
+app.command(commands.documents)
+app.command(commands.mcp)
+app.command(commands.meetings)
+app.command(commands.questions)
+app.command(commands.sync)
 app.default(commands.default)  # `itu-doc-downloader` with no arguments
 
 # Enable `itu-doc-downloader --install-completion`.

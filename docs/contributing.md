@@ -2,11 +2,11 @@
 title: Contributing
 ---
 
-# Contributing
+## Contributing
 
 Contributions are welcome! Here's how you can help.
 
-## Development Setup
+### Development Setup
 
 ```bash
 # Clone the repository (replace <repo-url> with your fork)
@@ -25,13 +25,13 @@ uv sync --dev
 # or: mise dev    # composite task that runs `uv sync -U --dev --all-extras --all-groups`
 ```
 
-## Running Tests
+### Running Tests
 
 ```bash
 mise test          # pytest with coverage
 ```
 
-## Code Quality
+### Code Quality
 
 ```bash
 # The single command a contributor should run before opening a PR:
@@ -47,7 +47,7 @@ mise bump          # uv-bump, then uv sync -U --dev --all-extras --all-groups
 mise docs          # build the Zensical documentation
 ```
 
-## Pull Requests
+### Pull Requests
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)

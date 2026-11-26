@@ -30,10 +30,22 @@ mise all        # test + lint + format in one pass
 ## Layout
 
 - **`src/itu_doc_downloader/`** — primary package source (src layout)
-- **`tests/`** — pytest suite (100% coverage gate)
+- **`src/itu_doc_downloader/models/`** — the ITU-T domain model (identifiers, enums, questions)
+- **`src/itu_doc_downloader/scraping/`** — parsers of the ITU-T pages
+- **`src/itu_doc_downloader/auth/`** — the TIES handshake
+- **`src/itu_doc_downloader/storage/`** — the SQLite metadata store and the file cache
 - **`src/itu_doc_downloader/cli/`** — Cyclopts CLI
+- **`src/itu_doc_downloader/mcp_server.py`** — the FastMCP server
+- **`tests/`** — pytest suite (100% coverage gate), `tests/fixtures/` holds the recorded pages
 - **`docs/`** — Zensical / MkDocs Material documentation
 - **`.config/mise/`** — task runner config (`config.toml` + `conf.d/` fragments)
+
+## The ITU-T at a glance
+
+- Documents live in the ITU-T DMS on `www.itu.int`; most of them need a TIES account.
+- A document is `T{period}-SG{group}[-{meeting}]-{type}[-{subtype}]-{number}`.
+- The metadata pages are public, the document files are not.
+- The reverse engineered scheme is written up in `docs/reference/itu-dms.md`.
 
 ## Where to dig deeper
 

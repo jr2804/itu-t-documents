@@ -11,6 +11,7 @@ hide:
 ## Documentation
 
 - [API reference](reference/api.md)
+- [The ITU-T Document Management System](reference/itu-dms.md)
 - [Credits](credits.md)
 - [License](license.md)
 - [Contributing](contributing.md)

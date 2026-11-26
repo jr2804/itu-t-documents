@@ -26,6 +26,19 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Pre-commit config      | `.pre-commit-config.yaml`                                       | Hook list                                       |
 | MCP server config      | `.config/mise/conf.d/mcp.toml`                                  | `[tasks.add-mcp-servers]`, tool list            |
 | Skills install task    | `.config/mise/conf.d/skills.toml`                               | `[tasks.add-skills]`, skill list                |
+| Domain model           | `src/itu_doc_downloader/models/`                               | `documents.py`, `questions.py`, `enums.py`      |
+| Page parsers           | `src/itu_doc_downloader/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py` |
+| TIES handshake         | `src/itu_doc_downloader/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
+| HTTP access            | `src/itu_doc_downloader/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
+| Configuration           | `src/itu_doc_downloader/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |
+| Metadata store         | `src/itu_doc_downloader/storage/database.py`                   | `MetadataStore`, the SQLModel tables            |
+| Document file cache    | `src/itu_doc_downloader/storage/files.py`                      | `FileCache`                                    |
+| URL builders           | `src/itu_doc_downloader/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
+| High level API         | `src/itu_doc_downloader/api.py`                                | `ItuDocuments`, `DocumentRecord`, `SourceCount` |
+| MCP server             | `src/itu_doc_downloader/mcp_server.py`                         | `mcp`, the tool functions                       |
+| Recorded ITU-T pages   | `tests/fixtures/`                                               | `*.html`, the input of the parser tests        |
+| Cache directory        | `~/.cache/itu-doc-downloader/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |
+| Configuration file     | `~/.config/itu-doc-downloader/config.toml`                     | `[credentials]`, `[general]`                   |
 
 ## Naming conventions
 
@@ -35,3 +48,6 @@ Kept compact — agents hallucinate less when they know where definitions live.
 - **Test files**: `test_<module>.py`
 - **Template files** (in source template): `filename.ext.jinja` — the `.jinja`
   suffix is stripped on generation
+- **Environment variables**: `ITU_TIES_USERNAME`, `ITU_TIES_PASSWORD`,
+  `ITU_CACHE_DIR`, `ITU_CONFIG_DIR`, `ITU_TIMEOUT`, `ITU_MAX_CONCURRENCY`,
+  `ITU_USER_AGENT`, `ITU_VERIFY_TLS`

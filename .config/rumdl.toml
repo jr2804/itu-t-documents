@@ -26,16 +26,12 @@ disable = ["MD033"]
 # ]
 
 # List of file/directory patterns to exclude from linting
-# exclude = [
-#     ".git",
-#     ".github",
-#     "node_modules",
-#     "vendor",
-#     "dist",
-#     "build",
-#     "CHANGELOG.md",
-#     "LICENSE.md",
-# ]
+# The root AGENTS.md holds the block that `bd` manages and rewrites on every
+# setup run, so its formatting is not under the control of this repository.
+exclude = [
+    "AGENTS.md",
+    ".beads/README.md",
+]
 
 # Respect .gitignore files when scanning directories (default: true)
 # respect-gitignore = true

@@ -9,120 +9,171 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
+<img src="assets/icon.svg" width="64" height="64" align="right">
+
+The documents of ITU-T study group meetings are published in the ITU-T Document
+Management System (DMS). Most of them are protected by the TIES access control
+and need an account. This package scrapes the metadata, keeps it in a local
+database and downloads the documents on demand.
+
 ---
+
+## Features
+
+- **Metadata of every document type** — contributions (`C`), temporary
+  documents (`TD`), collective letters (`COL`) and reports (`R`), with their
+  number, title, sources, questions and posting date.
+- **Study group structure** — the questions under study with their working
+  group (`WP1/12`, `PLEN`, …) and their rapporteurs.
+- **TIES authentication** — the SAML handshake against `auth.itu.int` and
+  `login.itu.int` is performed automatically.
+- **Local caches** — the raw HTTP responses are cached with
+  [hishel](https://hishel.com/), the metadata in a SQLite database and the
+  downloaded documents on disk. Cached data never needs authentication again.
+- **Three interfaces** — a Python API, a command line interface and an MCP
+  server for AI agents.
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install the dependencies
 mise dev
+
+# List the meetings of study group 12
+uv run itu-doc-downloader meetings --study-group 12
+
+# Fetch the documents of a meeting into the local database
+uv run itu-doc-downloader sync --study-group 12 --meeting 260609
+
+# Search them
+uv run itu-doc-downloader documents --study-group 12 --question 5
 ```
 
-## Usage
+## TIES credentials
 
-### Running Tests
+Downloading a document needs a [TIES](https://www.itu.int/hub/membership/user-account-ties/)
+account. The credentials are read from the environment:
 
 ```bash
-mise test
-# or
-uv run pytest
+export ITU_TIES_USERNAME="you@example.org"
+export ITU_TIES_PASSWORD="secret"
 ```
 
-### Code Quality
+or from `~/.config/itu-doc-downloader/config.toml`:
+
+```toml
+[credentials]
+username = "you@example.org"
+password = "secret"
+
+[general]
+cache_dir = "~/.cache/itu-doc-downloader"
+timeout = 30
+```
+
+Check that the login works with:
 
 ```bash
-mise lint       # ruff + ty + codespell
-mise format     # ruff format + isort
-mise all        # test + lint + format in one pass
-mise bump       # bump pyproject bounds, then uv sync -U for all groups/extras
+uv run itu-doc-downloader auth
 ```
 
-### CLI Commands
+## The ITU-T numbering scheme
+
+Every document is addressed by study period, study group, document type and an
+increasing number. Temporary documents carry the meeting and a sub-type:
+
+| Type | Identifier | Example |
+|------|------------|---------|
+| Contribution | `T{sp}-SG{sg}-C-{number}` | `T25-SG12-C-0192` |
+| Temporary document | `T{sp}-SG{sg}-{meeting}-TD-{subtype}-{number}` | `T25-SG12-261015-TD-GEN-0520` |
+| Collective letter | `T{sp}-SG{sg}-COL-{number}` | `T25-SG12-COL-0001` |
+| Report | `T{sp}-SG{sg}-R-{number}` | `T25-SG12-R-0001` |
+
+`T25` is the study period `2025-2028`, `SG12` the study group, `261015` the
+meeting (15 October 2026) and `0520` the number of the document. Contributions,
+collective letters and reports are numbered across the whole study period, so
+their identifier carries no meeting.
+
+## Python API
+
+```python
+from itu_doc_downloader import DocType, ItuDocuments, StudyPeriod
+
+with ItuDocuments() as api:
+    period = StudyPeriod(start_year=2025, end_year=2028)
+
+    # Fetch the documents of a meeting and store them locally
+    api.sync_meeting(12, meeting, period, (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT))
+
+    # All temporary documents of Q5/12
+    for document in api.documents_for_question(study_group=12, question=5, doc_type=DocType.TEMPORARY_DOCUMENT):
+        print(document.document_id, document.title)
+
+    # The most prolific sources of the last three meetings
+    for source in api.top_sources(study_group=12, meetings=("270119", "261015", "260609")):
+        print(source.count, source.source)
+```
+
+## CLI
+
+```text
+itu-doc-downloader auth                          # check the TIES credentials
+itu-doc-downloader meetings                      # list the meetings of a study group
+itu-doc-downloader questions                     # list the questions under study
+itu-doc-downloader sync --meeting 260609         # fetch and store the documents
+itu-doc-downloader documents --question 5        # search the stored documents
+itu-doc-downloader documents --source "TU Berlin"
+itu-doc-downloader download --document T25-SG12-C-0192 --format PDF
+itu-doc-downloader mcp                           # run the MCP server over stdio
+```
+
+| Option | Description |
+|--------|-------------|
+| `--study-group`, `-g` | Study group number, e.g. `12` |
+| `--study-period`, `-p` | Study period, e.g. `2025-2028` |
+| `--meeting`, `-m` | Meeting code as used by the ITU-T, e.g. `270119` |
+| `--type` | Document type: `TD`, `C`, `COL` or `R` |
+| `--question`, `-q` | Restrict to a question number |
+| `--source`, `-s` | Restrict to a submitting organisation |
+| `--format` | Download format: `PDF`, `MSW` (Word), `ZIP` or `HTM` |
+| `--language` | Language code: `E`, `F`, `S`, `A`, `C` or `R` |
+
+## MCP server
 
 ```bash
-uv run itu-doc-downloader                  # default command
-uv run itu-doc-downloader greet Alice      # greet someone
-uv run itu-doc-downloader add 5 3          # add numbers
-uv run itu-doc-downloader greet Alice -o out.txt --no-cache
-uv run itu-doc-downloader --version        # show version
+uv run itu-doc-downloader mcp
 ```
 
-| Environment Variable | Description |
-|----------------------|-------------|
-| `ITU_DOC_DOWNLOADER_CACHE` | Enable/disable caching (true/false) |
-| `ITU_DOC_DOWNLOADER_OUTPUT_FILE` | Default output file path |
+The server offers the tools `list_meetings`, `list_questions`,
+`documents_for_question`, `contributions_by_source`, `top_sources`,
+`search_documents` and `download_document`. They answer the questions that
+ITU-T users ask most often:
 
-Install shell completion (after the command is available on your `PATH`):
+- *"Show me all TDs of Q5/12 at meeting XYZ"* — `documents_for_question`
+- *"Which contributions were made by company XYZ in study group 12?"* —
+  `contributions_by_source`
+- *"Which source submitted the most documents (TD + C) to the last three
+  meetings?"* — `top_sources`
 
-```bash
-itu-doc-downloader --install-completion
-```
+## Caches
+
+| Path | Content |
+|------|---------|
+| `~/.cache/itu-doc-downloader/metadata.db` | The SQLite metadata store |
+| `~/.cache/itu-doc-downloader/http-cache.sqlite` | The raw HTTP cache (hishel) |
+| `~/.cache/itu-doc-downloader/files/` | The downloaded documents |
 
 ## Development
 
-### Pre-commit Hooks
-
 ```bash
-pre-commit install
-pre-commit run --all-files
+mise test        # pytest with the 100% coverage gate
+mise lint        # ruff + ty + codespell
+mise format      # ruff format + isort
+mise all         # test + lint + format in one pass
 ```
 
-### Documentation
-
-```bash
-mise docs-serve          # live preview at http://localhost:8000
-mise docs-build          # build static site to site/
-```
-
-## AI Dev-Features
-
-This project includes optional AI-agent tooling. After `mise dev`, install with:
-
-```bash
-mise run add-mcp-servers <agent>   # register MCP servers (claude, codex, gemini, ...)
-mise run add-skills                # install agent skills
-```
-
-Enabled dev-features are listed in `.config/mise/conf.d/mcp.toml` and
-`.config/mise/conf.d/skills.toml`.
-
-<!--
-Documentation upgrade prompt for coding agents:
-
-When this project is stable / contains a sufficient amount of code, upgrade the
-documentation as follows:
-
-1. Improve this README.md (the project's start page) by applying the skills
-   good-readme and beautify-github-readme, and (if applicable) visual-explainer,
-   effective-html, and mermaid-diagrams.
-2. Organize extended documentation under docs/ — apply the project-docs skill
-   first to structure the docs tree.
-3. Enrich technically complex code with useful figures by applying the skills
-   mermaid-diagrams, visual-explainer, effective-html, and scientific-figures.
--->
-
-## Project Structure
-
-```text
-itu-doc-downloader/
-├── .config/mise/               # mise task definitions
-├── docs/                       # MkDocs documentation
-├── src/itu_doc_downloader/     # Source package
-│   ├── __init__.py
-│   ├── __about__.py
-│   └── cli/
-│       ├── __init__.py
-│       ├── app.py
-│       ├── args.py
-│       └── commands.py
-├── tests/                      # Test suite
-├── .copier-answers.yml         # Template version tracking
-├── pyproject.toml              # uv + hatch + pytest config
-├── ruff.toml                   # Linter + formatter config
-├── ty.toml                     # Type checker config
-├── TOOLS.md                    # Tool usage notes
-└── README.md
-```
+The reverse engineered URL and numbering scheme is documented in
+[docs/reference/itu-dms.md](docs/reference/itu-dms.md).
 
 ## Tech Stack
 
@@ -134,6 +185,12 @@ itu-doc-downloader/
 | Type checker | [ty](https://github.com/google/ty) | Strict type checking |
 | Testing | [pytest](https://pytest.org/) | Test framework with 100% coverage gate |
 | CLI | [Cyclopts](https://cyclopts.readthedocs.io/) | Type-driven CLI parsing and shell completion |
+| HTTP | [httpx](https://www.python-httpx.org/) | HTTP client with the TIES session |
+| HTTP cache | [hishel](https://hishel.com/) | RFC 9111 compliant response cache |
+| Database | [SQLModel](https://sqlmodel.tiangolo.com/) | Typed SQLite metadata store |
+| Settings | [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) | Layered configuration |
+| Parsing | [lxml](https://lxml.de/) | HTML parser for the ITU-T pages |
+| MCP | [FastMCP](https://gofastmcp.com/) | Model Context Protocol server |
 | Spell check | [codespell](https://github.com/codespell-project/codespell) | Code and doc spell checking |
 | Documentation | [Zensical](https://github.com/zensical/zensical) | MkDocs Material with executable examples |
 | Versioning | [uv-dynamic-versioning](https://github.com/ninoseki/uv-dynamic-versioning) | Git tag-based versioning |
