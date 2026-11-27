@@ -2,55 +2,318 @@
 
 > Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP.
 
-<!-- markdownlint-disable MD033 -->
 <p align="center">
-  <a href="#"><img alt="Python 3.13+" src="https://img.shields.io/badge/python-3.13%2B-3776ab?logo=python"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg"></a>
+  <a href="https://github.com/jr2804/itu-t-documents/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jr2804/itu-t-documents/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-5a5a5a.svg"></a>
+  <img alt="Python 3.13 or newer" src="https://img.shields.io/badge/python-3.13%2B-3776ab?logo=python">
 </p>
-<!-- markdownlint-enable MD033 -->
 
-<img src="assets/icon.svg" width="64" height="64" align="right">
+The documents of the ITU-T study groups live in the ITU-T Document Management
+System (DMS). Their metadata is public — the number, the title, the sources,
+the questions — but most of the files behind it are protected by the TIES
+access control and need an account.
 
-The documents of ITU-T study group meetings are published in the ITU-T Document
-Management System (DMS). Most of them are protected by the TIES access control
-and need an account. This package scrapes the metadata, keeps it in a local
-database and downloads the documents on demand.
+`itu-t-documents` reads that metadata, keeps it in a local SQLite database and
+downloads the documents on demand. Everything it has seen stays on disk, so
+the second question about a meeting is answered without a request to
+`www.itu.int` and without a login.
 
----
+## What it does
 
-## Features
-
-- **Metadata of every document type** — contributions (`C`), temporary
-  documents (`TD`), collective letters (`COL`) and reports (`R`), with their
-  number, title, sources, questions and posting date.
-- **Study group structure** — the questions under study with their working
-  group (`WP1/12`, `PLEN`, …) and their rapporteurs.
-- **TIES authentication** — the SAML handshake against `auth.itu.int` and
-  `login.itu.int` is performed automatically.
-- **Local caches** — the raw HTTP responses are cached with
-  [hishel](https://hishel.com/), the metadata in a SQLite database and the
-  downloaded documents on disk. Cached data never needs authentication again.
+- **Every document type** — contributions (`C`), temporary documents (`TD`),
+  collective letters (`COL`) and reports (`R`), with their number, title,
+  sources, questions and posting date.
+- **The structure of the ITU-T** — the study periods, the study groups, the
+  working groups, the questions under study and their rapporteurs. The
+  structure changes from period to period, so it is read from the ITU-T and
+  never hard coded.
 - **Complete listings** — a listing is read per sub-type and compared with the
   number of documents the ITU-T reports, so a truncated listing is never
   stored as if it were complete.
-- **Three interfaces** — a Python API, a command line interface and an MCP
-  server for AI agents.
+- **TIES authentication** — the SAML handshake against `auth.itu.int` and
+  `login.itu.int` is performed automatically, once per session.
+- **Local caches** — the raw HTTP responses are cached with
+  [hishel](https://hishel.com/), the metadata in a SQLite database and the
+  downloaded documents on disk.
+- **Three interfaces** — one command line tool, one Python API and one MCP
+  server for AI agents, all on top of the same caches.
 
-## Quick Start
+## Install
+
+The package needs **Python 3.13 or newer**. The free-threaded build of
+CPython 3.14 is supported as well.
+
+From a clone:
 
 ```bash
-# Install the dependencies
-mise dev
-
-# List the meetings of study group 12
-uv run itu-t-documents meetings --study-group 12
-
-# Fetch the documents of a meeting into the local database
-uv run itu-t-documents sync --study-group 12 --meeting 260609
-
-# Search them
-uv run itu-t-documents documents --study-group 12 --question 5
+git clone https://github.com/jr2804/itu-t-documents.git
+cd itu-t-documents
+mise dev              # syncs the environment with every extra and group
+uv run itu-t-documents --help
 ```
+
+`mise dev` runs `uv sync -U --dev --all-extras --all-groups`; without
+[mise](https://mise.jdx.dev/) the plain `uv sync --dev --all-extras
+--all-groups` does the same. From a clone, every command in this README is
+run with `uv run` in front of it.
+
+Every push to `main` is a release: the workflow tags the commit with the next
+[CalVer](https://calver.org/) version, builds the artifacts and publishes them
+to PyPI as `itu-t-documents`. The first release is cut by the next push to
+`main`, and from then on the published version installs with:
+
+```bash
+uv tool install itu-t-documents
+```
+
+## Quick start
+
+List the meetings of a study group — no account needed:
+
+```bash
+itu-t-documents meetings --study-group 12
+```
+
+```text
+270119  Geneva, 19 January - 27 January 2027
+261015  E-Meeting, 15 October 2026
+260609  Geneva, 09 June - 17 June 2026
+250909  Geneva, 09 September - 18 September 2025
+250325  E-Meeting, 25 March 2025
+250114  Geneva, 14 January - 23 January 2025
+```
+
+Fetch the documents of one of them into the local database:
+
+```bash
+itu-t-documents sync --study-group 12 --meeting 260609
+```
+
+```text
+260609: 276 documents
+276 documents stored in /home/you/.cache/itu-t-documents/metadata.db
+```
+
+Search what was stored — this never touches the network:
+
+```bash
+itu-t-documents documents --study-group 12 --question 5 --limit 3
+```
+
+```text
+T25-SG12-260609-TD-GEN-0467      TD   Q7,6,5,4,10 Executive Summary of the Working Party 1/12 Meeting            Chair WP1/12
+T25-SG12-260609-TD-GEN-0466      TD   Q7,6,5,4,10 Draft agenda for WP1/12: Terminals and multimedia subjective   Chair WP1/12
+T25-SG12-260609-TD-GEN-0433      TD   Q5          Status report of Question 5/12: Telephonometric methodologie   Rapporteur Q5/12
+```
+
+Download a document. This is the one step that needs a TIES account:
+
+```bash
+itu-t-documents download --document T25-SG12-COL-0001 --format MSW --language F
+```
+
+The file is written into the file cache and its path is printed. Add
+`--output-file ~/report.docx` to write it somewhere else.
+
+## How it works
+
+```mermaid
+flowchart TD
+    PKG["itu-t-documents<br/>command line · Python API · MCP server"]
+    HTTP["HTTP client<br/>hishel response cache"]
+    PARSE["Scrapers<br/>lxml"]
+    META[("Metadata store<br/>metadata.db")]
+    FILES[("File cache<br/>files/")]
+    DMS["ITU-T DMS<br/>www.itu.int"]
+    TIES["TIES login<br/>auth.itu.int / login.itu.int"]
+
+    PKG -->|"requests"| HTTP
+    HTTP <-->|"listing, detail page"| DMS
+    HTTP -->|"parses"| PARSE
+    PARSE -->|"metadata"| META
+    META -->|"answers"| PKG
+    PKG -->|"downloads"| TIES
+    TIES -->|"session cookie"| DMS
+    DMS -->|"document file"| FILES
+    FILES -->|"served from disk"| PKG
+
+    classDef face fill:#f2f4f7,stroke:#5b6472,color:#1f2430
+    classDef local fill:#fdece2,stroke:#c2410c,color:#4a1d05
+    classDef ties fill:#e6f4ea,stroke:#2f7a45,color:#12331f
+    classDef remote fill:#e8eef7,stroke:#3f6fa8,color:#12263f
+
+    class PKG face
+    class HTTP,PARSE,META,FILES local
+    class TIES ties
+    class DMS remote
+```
+
+Four facts make the package behave the way it does:
+
+- **Only the download needs an account.** The meetings, the questions, the
+  structure of a study group and the metadata of every document are public.
+- **The HTTP cache follows the rules of RFC 9111.** It honours the caching
+  headers of the ITU-T, so a page is fetched again when the site says it
+  changed.
+- **A listing is never stored half.** The number of documents the ITU-T
+  reports is compared with the number that was parsed; an incomplete listing
+  is refused instead of being stored silently.
+- **The caches do not expire.** A document that was downloaded once is served
+  from the disk, and a question about a meeting that was synchronised is
+  answered from the database.
+
+The URL layout, the numbering scheme and the authentication chain of the DMS
+are written up in [the reference](docs/reference/itu-dms.md).
+
+## The three interfaces
+
+### Command line
+
+| Command | What it does |
+|---------|--------------|
+| `default` | print a short introduction to the package |
+| `periods` | list the study periods the ITU-T knows |
+| `study-groups` | list the study groups of a period |
+| `structure` | the plenary, the working groups, the questions and the other groups of a study group |
+| `search` | search the working groups, the questions and the other groups |
+| `meetings` | list the meetings of a study group |
+| `questions` | list the questions under study, with their working group and their rapporteurs |
+| `sync` | fetch the documents of a meeting into the local database |
+| `documents` | search the documents in the local database |
+| `download` | download a document |
+| `auth` | check whether the TIES credentials are configured and usable |
+| `mcp` | run the MCP server over stdio |
+
+The options:
+
+| Option | Commands | Meaning | Default |
+|--------|----------|---------|---------|
+| `--study-group`, `-g` | `structure`, `meetings`, `questions`, `sync`, `documents` | the study group, e.g. `12` | `12` |
+| `--study-period`, `-p` | `study-groups`, `structure`, `meetings`, `questions`, `sync`, `search` | the study period, e.g. `2025-2028` | the current period, `2025-2028` |
+| `--study-period`, `-p` | `documents` | the study period to search in, e.g. `2025-2028` | every period |
+| `--meeting`, `-m` | `sync`, `documents` | a meeting, given by its DMS code, e.g. `270119` | every meeting |
+| `--type` | `sync` | the document type to fetch: `TD`, `C`, `COL` or `R` | `C` and `TD` |
+| `--type` | `documents` | the document type to search for: `TD`, `C`, `COL` or `R` | every type |
+| `--question`, `-q` | `documents` | a question number, e.g. `5` for `Q5/12` | every question |
+| `--source`, `-s` | `documents` | a submitting organisation; the match is partial | every source |
+| `--limit`, `-l` | `documents` | the maximum number of results | no limit |
+| `--search`, `-s` | `search` | the text to look for, e.g. `speech` | required |
+| `--document` | `download` | the DMS identifier | required |
+| `--format` | `download` | `PDF`, `MSW` (Word), `ZIP` or `HTM` | `PDF` |
+| `--language` | `download` | `E`, `F`, `S`, `A`, `C` or `R` | `E` |
+| `--output-file`, `-o` | `download` | a path to write the document to | the file cache |
+
+The study group, the study period, the meeting and the output file can also
+be set in the environment:
+
+```bash
+export ITU_T_DOCUMENTS_STUDY_GROUP=12
+export ITU_T_DOCUMENTS_STUDY_PERIOD=2025-2028
+export ITU_T_DOCUMENTS_MEETING=261015
+export ITU_T_DOCUMENTS_OUTPUT_FILE=~/Documents/itu
+```
+
+Every command and every option is documented in
+[the guide to the command line](docs/cli.md).
+
+### Python API
+
+```python
+from itu_t_documents import DocType, ItuDocuments, MeetingId, StudyPeriod
+
+with ItuDocuments() as api:
+    period = StudyPeriod.from_year(2025)
+
+    # Fetch the documents of a meeting and store them locally
+    api.sync_meeting(12, MeetingId.from_code("260609"), period, (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT))
+
+    # All temporary documents of Q5/12
+    for document in api.documents_for_question(study_group=12, question=5, doc_type=DocType.TEMPORARY_DOCUMENT):
+        print(document.document_id, document.title)
+
+    # The most prolific sources of the last three meetings
+    for source in api.top_sources(study_group=12, meetings=("270119", "261015", "260609")):
+        print(source.count, source.source)
+```
+
+The structure of the ITU-T lives in its own object:
+
+```python
+from itu_t_documents import ItuCatalogue, StudyPeriod
+
+with ItuCatalogue() as catalogue:
+    period = StudyPeriod.from_year(2025)
+
+    [group.code for group in catalogue.study_groups(period)]
+    # ['SG02', 'SG03', 'SG05', 'SG11', 'SG12', 'SG13', 'SG15', 'SG17', 'SG20', 'SG21']
+
+    structure = catalogue.structure(12, period)
+    structure.question(5).title
+    # 'Telephonometric methodologies for handset and headset terminals Continuation of Q5/12'
+
+    structure.question(99)
+    # UnknownEntityError: SG12 has no question Q99/12
+```
+
+See [the guide to the Python API](docs/python-api.md) for the models, the
+metadata store, the file cache and the errors.
+
+### MCP server
+
+```bash
+itu-t-documents mcp
+```
+
+The server speaks the Model Context Protocol over stdio. It opens no port and
+holds no state of its own — everything it knows is in the local database of
+the package.
+
+| Tool | Answers |
+|------|---------|
+| `list_meetings` | *"When does SG12 meet?"* |
+| `list_questions` | *"Which questions are under study?"* |
+| `documents_for_question` | *"Show me all TDs of Q5/12 at meeting XYZ"* |
+| `contributions_by_source` | *"Which contributions were made by company XYZ in study group 12?"* |
+| `top_sources` | *"Which source submitted the most documents (TD + C) to the last three meetings?"* |
+| `search_documents` | *"Show me the contributions of Huawei in 2025"* |
+| `download_document` | *"Download the collective letter of SG12 in French"* |
+| `list_periods` | *"Which study periods are there?"* |
+| `list_study_groups` | *"Which study groups does the ITU-T have?"* |
+| `list_structure` | *"Which working groups does SG13 have?"* |
+| `search_structure` | *"Which working group deals with speech?"* |
+
+Register it with an agent:
+
+```bash
+claude mcp add itu-t-documents -- itu-t-documents mcp
+```
+
+See [the guide to the MCP server](docs/mcp.md).
+
+## Document identifiers
+
+Every document is addressed by study period, study group, document type and an
+increasing number. Temporary documents carry the meeting and a sub-type:
+
+| Type | Identifier | Example |
+|------|------------|---------|
+| Contribution | `T{sp}-SG{sg}-C-{number}` | `T25-SG12-C-0192` |
+| Temporary document | `T{sp}-SG{sg}-{meeting}-TD-{subtype}-{number}` | `T25-SG12-261015-TD-GEN-0520` |
+| Collective letter | `T{sp}-SG{sg}-COL-{number}` | `T25-SG12-COL-0001` |
+| Report | `T{sp}-SG{sg}-R-{number}` | `T25-SG12-R-0001` |
+
+`T25` is the study period `2025-2028`, `SG12` the study group, `261015` the
+meeting (15 October 2026) and `0520` the number of the document. Contributions,
+collective letters and reports are numbered across the whole study period, so
+their identifier carries no meeting. The numbers are not consecutive — a
+withdrawn document leaves a hole — and the number of a temporary document runs
+per sub-type over the whole study period.
+
+A document is published in the format it was submitted in, so the format and
+the language of a download have to match what the DMS offers for that
+document. `T25-SG12-COL-0001`, for example, is available as `MSW` in six
+languages; the package picks the rendition that matches and prefers the
+original over a revision.
 
 ## TIES credentials
 
@@ -74,18 +337,26 @@ cache_dir = "~/.cache/itu-t-documents"
 timeout = 30
 ```
 
-Both are optional; the environment wins over the file. A third, lowest priority
-source is a [secretspec](https://github.com/cachix/secretspec) provider — see
-[Credentials from secretspec](#credentials-from-secretspec).
+A third, lowest priority source is a
+[secretspec](https://github.com/cachix/secretspec) provider, which is installed
+with the optional extra `uv sync --extra secretspec`. Without the extra, or
+without a matching provider, it is ignored silently.
 
-### The membership of the account
+Check that the account works with:
+
+```bash
+itu-t-documents auth
+```
+
+```text
+TIES login succeeded.
+```
 
 A TIES account is valid for the whole ITU-T, but its membership covers only
-the study groups it belongs to. The metadata of a document — its listing, its
-title, its sources — is public and is read without a login, but the file
-itself is not: a document outside the membership answers `401 Unauthorized`
-with a page that blames invalid credentials, which is not what happened. The
-package reports that as a missing membership:
+the study groups it belongs to. The metadata of a document is public and is
+read without a login, but the file is not: a document outside the membership
+answers `401 Unauthorized` with a page that blames invalid credentials, which
+is not what happened. The package reports that as a missing membership:
 
 ```text
 $ itu-t-documents download --document T25-SG13-C-0001 --format MSW
@@ -93,210 +364,88 @@ T25-SG13-C-0001 is not accessible with these credentials; the membership of
 the TIES account does not cover SG13.
 ```
 
-Check that the login works with:
-
-```bash
-uv run itu-t-documents auth
-```
-
-### Credentials from secretspec
-
-[secretspec](https://github.com/cachix/secretspec) keeps secrets in a provider
-(keyring, 1Password, Vault, a dotenv file, …) and declares them in a
-`secretspec.toml`. Install the optional extra and declare the two TIES secrets
-under the provider alias `itu-ties`:
-
-```bash
-uv sync --extra secretspec
-```
-
-```toml
-# secretspec.toml
-[project]
-name = "itu-t-documents"
-revision = "1.0"
-
-[providers]
-itu-ties = "keyring://"
-
-[profiles.default]
-ITU_TIES_USERNAME = { description = "TIES account", providers = ["itu-ties"] }
-ITU_TIES_PASSWORD = { description = "TIES password", providers = ["itu-ties"] }
-```
-
-Store the values once, then run the downloader from the directory that holds the
-manifest:
-
-```bash
-secretspec set ITU_TIES_USERNAME
-secretspec set ITU_TIES_PASSWORD
-uv run itu-t-documents auth
-```
-
-secretspec itself only ever looks for a file named `secretspec.toml` in the
-current directory and its parents. To keep the manifest somewhere else, put it
-next to the configuration file — the package looks there as well:
-
-```text
-~/.config/itu-t-documents/secretspec.toml
-```
-
-or name it explicitly:
-
-```bash
-export ITU_SECRETSPEC_MANIFEST="/srv/secrets/itu-t-documents.toml"
-```
-
-The manifest is looked up in this order: `ITU_SECRETSPEC_MANIFEST`, the
-`general.secretspec_manifest` key of the configuration file, the
-`secretspec.toml` of the configuration directory, and finally the discovery of
-secretspec itself.
-
-secretspec is consulted only when neither `ITU_TIES_USERNAME`/`ITU_TIES_PASSWORD`
-nor the configuration file provide the credentials. Without the extra, or without
-a matching provider, it is ignored silently.
-
-## The ITU-T numbering scheme
-
-Every document is addressed by study period, study group, document type and an
-increasing number. Temporary documents carry the meeting and a sub-type:
-
-| Type | Identifier | Example |
-|------|------------|---------|
-| Contribution | `T{sp}-SG{sg}-C-{number}` | `T25-SG12-C-0192` |
-| Temporary document | `T{sp}-SG{sg}-{meeting}-TD-{subtype}-{number}` | `T25-SG12-261015-TD-GEN-0520` |
-| Collective letter | `T{sp}-SG{sg}-COL-{number}` | `T25-SG12-COL-0001` |
-| Report | `T{sp}-SG{sg}-R-{number}` | `T25-SG12-R-0001` |
-
-`T25` is the study period `2025-2028`, `SG12` the study group, `261015` the
-meeting (15 October 2026) and `0520` the number of the document. Contributions,
-collective letters and reports are numbered across the whole study period, so
-their identifier carries no meeting. The numbers are not consecutive — a
-withdrawn document leaves a hole — and the number of a temporary document runs
-per sub-type over the whole study period.
-
-## The catalogue of the ITU-T
-
-The study groups, the working groups and the questions change from study
-period to period — SG9 and SG16 existed in 2022-2024 and were replaced by SG21
-in 2025-2028. They are therefore read from the ITU-T and never hard coded, and
-an entity that does not exist is refused instead of being returned empty.
-
-```python
-from itu_t_documents import ItuCatalogue, StudyPeriod
-
-with ItuCatalogue() as catalogue:
-    period = StudyPeriod.from_year(2025)          # the period that starts in 2025
-
-    [group.code for group in catalogue.study_groups(period)]   # SG02, SG03, SG05, …
-
-    structure = catalogue.structure(12, period)
-    structure.question(5).title                   # the title of Q5/12
-    structure.question(99)                        # raises UnknownEntityError
-```
-
-## Python API
-
-```python
-from itu_t_documents import DocType, ItuDocuments, StudyPeriod
-
-with ItuDocuments() as api:
-    period = StudyPeriod.from_year(2025)
-
-    # Fetch the documents of a meeting and store them locally
-    api.sync_meeting(12, meeting, period, (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT))
-
-    # All temporary documents of Q5/12
-    for document in api.documents_for_question(study_group=12, question=5, doc_type=DocType.TEMPORARY_DOCUMENT):
-        print(document.document_id, document.title)
-
-    # The most prolific sources of the last three meetings
-    for source in api.top_sources(study_group=12, meetings=("270119", "261015", "260609")):
-        print(source.count, source.source)
-```
-
-## CLI
-
-```text
-itu-t-documents auth                          # check the TIES credentials
-itu-t-documents periods                       # list the study periods
-itu-t-documents study-groups                  # list the study groups of a period
-itu-t-documents structure --study-group 12    # the groups and questions of a study group
-itu-t-documents search --search speech        # search the groups of the ITU-T
-itu-t-documents meetings                      # list the meetings of a study group
-itu-t-documents questions                     # list the questions under study
-itu-t-documents sync --meeting 260609         # fetch and store the documents
-itu-t-documents documents --question 5        # search the stored documents
-itu-t-documents documents --source "TU Berlin"
-itu-t-documents download --document T25-SG12-C-0192 --format PDF
-itu-t-documents mcp                           # run the MCP server over stdio
-```
-
-| Option | Description |
-|--------|-------------|
-| `--study-group`, `-g` | Study group number, e.g. `12` |
-| `--study-period`, `-p` | Study period, e.g. `2025-2028` |
-| `--meeting`, `-m` | Meeting code as used by the ITU-T, e.g. `270119` |
-| `--type` | Document type: `TD`, `C`, `COL` or `R` |
-| `--question`, `-q` | Restrict to a question number |
-| `--source`, `-s` | Restrict to a submitting organisation |
-| `--format` | Download format: `PDF`, `MSW` (Word), `ZIP` or `HTM` |
-| `--language` | Language code: `E`, `F`, `S`, `A`, `C` or `R` |
-
-## MCP server
-
-```bash
-uv run itu-t-documents mcp
-```
-
-The server offers the tools `list_meetings`, `list_questions`,
-`documents_for_question`, `contributions_by_source`, `top_sources`,
-`search_documents` and `download_document`. They answer the questions that
-ITU-T users ask most often:
-
-- *"Show me all TDs of Q5/12 at meeting XYZ"* — `documents_for_question`
-- *"Which contributions were made by company XYZ in study group 12?"* —
-  `contributions_by_source`
-- *"Which source submitted the most documents (TD + C) to the last three
-  meetings?"* — `top_sources`
-
-The catalogue of the ITU-T is offered as well: `list_periods`,
-`list_study_groups`, `list_structure` and `search_structure` answer *"Which
-study groups are there?"* and *"Which working group deals with speech?"*.
+The configuration file, the secretspec provider and every way to store a
+password are described in [getting started](docs/getting-started.md).
 
 ## Caches
+
+Everything the package has seen stays on disk:
 
 | Path | Content |
 |------|---------|
 | `~/.cache/itu-t-documents/metadata.db` | The SQLite metadata store |
-| `~/.cache/itu-t-documents/http-cache.sqlite` | The raw HTTP cache (hishel) |
+| `~/.cache/itu-t-documents/http-cache.sqlite` | The raw HTTP responses (hishel) |
 | `~/.cache/itu-t-documents/files/` | The downloaded documents |
+
+The cache directory is set with `ITU_CACHE_DIR` or the `general.cache_dir` key
+of the configuration file.
+
+## What it does not do
+
+- It only reads. The package never writes to the ITU-T.
+- It does not judge the documents. It reports the metadata the DMS publishes.
+- It cannot see what the account may not see. A document outside the
+  membership of the account is refused, and the ITU-T answers such a request
+  with `401 Unauthorized`.
+- It does not know the structure of the ITU-T by heart. The study groups, the
+  working groups and the questions change from period to period, so they are
+  read from the ITU-T, and an entity that does not exist is refused instead
+  of returning an empty result that looks like an answer.
+
+## Documentation
+
+The full documentation lives in [`docs/`](docs/index.md) and is built with
+[zensical](https://github.com/jr2804/zensical).
+
+| Page | What it holds |
+|------|---------------|
+| [Getting started](docs/getting-started.md) | installing the package, the TIES account, the first steps, troubleshooting |
+| [The command line](docs/cli.md) | every command and every option |
+| [The Python API](docs/python-api.md) | the API, the models, the catalogue, the caches, the errors |
+| [The MCP server](docs/mcp.md) | the tools and the questions they answer |
+| [The catalogue of the ITU-T](docs/catalogue.md) | the study periods, the study groups, the working groups, the questions |
+| [The ITU-T DMS](docs/reference/itu-dms.md) | the URL layout and the numbering scheme, as they were measured |
+| [API reference](docs/reference/api.md) | the generated reference of every public class and function |
+
+## Contributing
+
+Contributions are welcome. Open an issue before a large change, so the
+approach can be discussed, and send a pull request for the rest.
+
+```bash
+git clone https://github.com/jr2804/itu-t-documents.git
+cd itu-t-documents
+mise dev          # installs the tools and syncs the environment
+mise test         # pytest with the 100% coverage gate
+mise lint         # ruff
+mise all          # test, lint, spell, format, format-md and docs in one pass
+```
+
+The [contributing guide](docs/contributing.md) describes the setup, the
+quality gates and the conventions of the project, and the
+[code of conduct](docs/code_of_conduct.md) says how to behave in it.
 
 ## Development
 
-```bash
-mise test        # pytest with the 100% coverage gate
-mise lint        # ruff + ty + codespell
-mise format      # ruff format + isort
-mise docs        # build the documentation
-mise all         # test + lint + format in one pass
-```
+| Command | What it does |
+|---------|--------------|
+| `mise dev` | sync the development dependencies |
+| `mise test` | pytest with the 100% coverage gate |
+| `mise lint` | ruff, with the fixes applied |
+| `mise typecheck` | ty, the static type checker |
+| `mise spell` | codespell over the source and the tests |
+| `mise format` | reorder, format and sort the imports |
+| `mise format-md` | reformat the Markdown with rumdl |
+| `mise docs` | build the documentation site |
+| `mise version` | print the version the build backend resolves |
+| `mise all` | test, lint, spell, format, format-md and docs, in one pass |
 
-The documentation builder is a tool, not a dependency of the package: `mise
-docs` runs it through `uvx` with a pinned interpreter, outside the project
-environment.
+The version of the package is a [CalVer](https://calver.org/) version —
+`YYYY.MM.N`, e.g. `2026.11.1` — and it is derived from the git tag, never
+written into `pyproject.toml`. Every push to `main` is a release; the
+procedure is documented in [docs/release.md](docs/release.md).
 
-The version of the package is a CalVer version — `YYYY.MINOR.PATCH`, e.g.
-`2026.1.0` — and it is derived from the git tag, never written into
-`pyproject.toml`. Pushing a tag builds the artifacts, tests them on CPython
-3.13, 3.14 and the free-threaded 3.14t, publishes them to PyPI and creates the
-GitHub release. The procedure is documented in
-[docs/release.md](docs/release.md).
-
-The reverse engineered URL and numbering scheme is documented in
-[docs/reference/itu-dms.md](docs/reference/itu-dms.md).
-
-## Tech Stack
+### Built with
 
 | Layer | Tool | Purpose |
 |-------|------|---------|
