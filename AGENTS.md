@@ -119,7 +119,10 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
 - Never commit credentials. The configuration file lives in
   `~/.config/itu-doc-downloader`, outside the repository. TIES credentials
   resolve environment → `config.toml` → secretspec; the secretspec layer is
-  optional and must stay inert when the extra is not installed.
+  optional and must stay inert when the extra is not installed. The manifest
+  of the secretspec provider is resolved from `ITU_SECRETSPEC_MANIFEST`, the
+  configuration file, the `secretspec.toml` of the configuration directory and
+  the discovery of secretspec — in that order.
 
 ## Child DOX Index
 

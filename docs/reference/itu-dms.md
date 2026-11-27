@@ -239,6 +239,24 @@ contributes nothing — and it is ignored entirely when the extra is not install
 or the provider cannot be resolved. Installing the package without the extra
 therefore behaves exactly as before.
 
+### Where the manifest lives
+
+secretspec looks for a file named `secretspec.toml` in the current directory
+and its parents. It knows no other location: neither `~/.config/secretspec/`
+nor `~/.secretspec.toml` is searched, and
+`~/.config/secretspec/config.toml` holds secretspec's own configuration (such
+as `[audit] enabled = false`) rather than a manifest.
+
+The package therefore resolves the manifest itself, in this order:
+
+1. `ITU_SECRETSPEC_MANIFEST`,
+2. the `general.secretspec_manifest` key of the configuration file,
+3. `secretspec.toml` in the configuration directory, when the file exists,
+4. the discovery of secretspec itself.
+
+A manifest that cannot be read — a missing file, a directory — yields no
+credentials instead of an error, so the other sources keep working.
+
 ## Page size
 
 The document listings are paginated. The number of documents per page is kept

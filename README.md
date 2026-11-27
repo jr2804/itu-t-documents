@@ -133,6 +133,25 @@ secretspec set ITU_TIES_PASSWORD
 uv run itu-doc-downloader auth
 ```
 
+secretspec itself only ever looks for a file named `secretspec.toml` in the
+current directory and its parents. To keep the manifest somewhere else, put it
+next to the configuration file — the package looks there as well:
+
+```text
+~/.config/itu-doc-downloader/secretspec.toml
+```
+
+or name it explicitly:
+
+```bash
+export ITU_SECRETSPEC_MANIFEST="/srv/secrets/itu-doc-downloader.toml"
+```
+
+The manifest is looked up in this order: `ITU_SECRETSPEC_MANIFEST`, the
+`general.secretspec_manifest` key of the configuration file, the
+`secretspec.toml` of the configuration directory, and finally the discovery of
+secretspec itself.
+
 secretspec is consulted only when neither `ITU_TIES_USERNAME`/`ITU_TIES_PASSWORD`
 nor the configuration file provide the credentials. Without the extra, or without
 a matching provider, it is ignored silently.

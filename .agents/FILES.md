@@ -42,6 +42,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Recorded ITU-T pages   | `tests/fixtures/`                                               | `*.html`, the input of the parser tests        |
 | Cache directory        | `~/.cache/itu-doc-downloader/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |
 | Configuration file     | `~/.config/itu-doc-downloader/config.toml`                     | `[credentials]`, `[general]`                   |
+| secretspec manifest    | `~/.config/itu-doc-downloader/secretspec.toml`                  | `ITU_SECRETSPEC_MANIFEST`, `general.secretspec_manifest` |
 
 ## Naming conventions
 

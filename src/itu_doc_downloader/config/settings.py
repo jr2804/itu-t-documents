@@ -22,6 +22,14 @@ values:
     [general]
     cache_dir = "~/.cache/itu-doc-downloader"
     timeout = 30
+    secretspec_manifest = "~/.config/itu-doc-downloader/secretspec.toml"
+
+The manifest that declares the secretspec providers is a setting of its own:
+``secretspec_manifest``, read from ``ITU_SECRETSPEC_MANIFEST`` or from the
+``general.secretspec_manifest`` key of the configuration file. When it is
+unset, the package looks for a ``secretspec.toml`` in its configuration
+directory and leaves the rest to secretspec, which discovers the manifest in
+the current directory and its parents.
 """
 
 from __future__ import annotations
@@ -29,17 +37,21 @@ from __future__ import annotations
 import os
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import Field, SecretStr
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
+    InitSettingsSource,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
 
-from itu_doc_downloader.config.secretspec_source import SecretspecConfigSource
+from itu_doc_downloader.config.secretspec_source import (
+    SECRETSPEC_MANIFEST_NAME,
+    SecretspecConfigSource,
+)
 
 #: Default directory holding the configuration file.
 DEFAULT_CONFIG_DIR = Path("~/.config/itu-doc-downloader")
@@ -60,20 +72,25 @@ _TOML_SECTION_MAP: dict[str, dict[str, str]] = {
         "max_concurrency": "max_concurrency",
         "user_agent": "user_agent",
         "verify_tls": "verify_tls",
+        "secretspec_manifest": "secretspec_manifest",
     },
 }
 
 
-def default_config_file() -> Path:
-    """Return the path of the configuration file in the user's config directory.
+def default_config_dir() -> Path:
+    """Return the directory holding the configuration file.
 
     The directory can be moved with the ``ITU_CONFIG_DIR`` environment
     variable, which is read here because the setting sources are built before
     the settings themselves are resolved.
     """
     config_dir = os.environ.get("ITU_CONFIG_DIR")
-    directory = Path(config_dir).expanduser() if config_dir else DEFAULT_CONFIG_DIR.expanduser()
-    return directory / CONFIG_FILE_NAME
+    return Path(config_dir).expanduser() if config_dir else DEFAULT_CONFIG_DIR.expanduser()
+
+
+def default_config_file() -> Path:
+    """Return the path of the configuration file in the user's config directory."""
+    return default_config_dir() / CONFIG_FILE_NAME
 
 
 class TomlConfigSource(PydanticBaseSettingsSource):
@@ -107,6 +124,51 @@ class TomlConfigSource(PydanticBaseSettingsSource):
                 if key in section_values:
                     values[setting_name] = section_values[key]
         return values
+
+
+def resolve_secretspec_manifest(explicit: str | Path | None = None) -> Path | None:
+    """Resolve the manifest that declares the secretspec providers.
+
+    The manifest is looked up in this order: the explicitly passed value, the
+    ``ITU_SECRETSPEC_MANIFEST`` environment variable, the
+    ``general.secretspec_manifest`` key of the configuration file, and the
+    ``secretspec.toml`` file in the configuration directory. The last step is
+    the one the package owns, so a project can keep its manifest next to the
+    configuration file; secretspec itself only ever looks in the current
+    directory and its parents. When nothing is found the manifest is left to
+    secretspec, which discovers it on its own.
+    """
+    for candidate in (explicit, os.environ.get("ITU_SECRETSPEC_MANIFEST")):
+        if candidate:
+            return Path(str(candidate)).expanduser()
+    configured = TomlConfigSource(Settings, default_config_file())().get("secretspec_manifest")
+    if configured:
+        return Path(str(configured)).expanduser()
+    manifest = default_config_dir() / SECRETSPEC_MANIFEST_NAME
+    return manifest if manifest.is_file() else None
+
+
+class SecretspecManifestSource(PydanticBaseSettingsSource):
+    """Reports the secretspec manifest that is in use.
+
+    The source comes first in the order of the setting sources because it
+    resolves the manifest from every layer at once — the explicit value, the
+    environment, the configuration file and the configuration directory — and
+    no other layer can disagree with the result.
+    """
+
+    def __init__(self, settings_cls: type[BaseSettings], manifest: Path | None) -> None:
+        super().__init__(settings_cls)
+        self._manifest = manifest
+
+    @staticmethod
+    def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        """Return the value of a single field; always unset for this source."""
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        """Return the manifest path, if one was found."""
+        return {"secretspec_manifest": self._manifest}
 
 
 class Settings(BaseSettings):
@@ -151,6 +213,13 @@ class Settings(BaseSettings):
         default=True,
         description="Whether TLS certificates are verified.",
     )
+    secretspec_manifest: Path | None = Field(
+        default=None,
+        description=(
+            "Manifest that declares the secretspec providers; unset leaves the manifest to secretspec, "
+            "which discovers it in the current directory and its parents."
+        ),
+    )
 
     @classmethod
     def settings_customise_sources(
@@ -161,13 +230,16 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """Order the setting sources: explicit values, environment, TOML file, secretspec."""
+        """Order the setting sources: manifest, explicit values, environment, TOML file, secretspec."""
+        explicit = cast(InitSettingsSource, init_settings).init_kwargs.get("secretspec_manifest")
+        manifest = resolve_secretspec_manifest(explicit)
         return (
+            SecretspecManifestSource(settings_cls, manifest),
             init_settings,
             env_settings,
             TomlConfigSource(settings_cls, default_config_file()),
             file_secret_settings,
-            SecretspecConfigSource(settings_cls),
+            SecretspecConfigSource(settings_cls, manifest=manifest),
         )
 
     @property

@@ -54,6 +54,11 @@ class _FakeBuilder:
         self._calls["reason"] = reason
         return self
 
+    def with_path(self, path: str) -> _FakeBuilder:
+        """Record the manifest."""
+        self._calls["path"] = path
+        return self
+
     def load(self) -> _FakeResolved:
         """Return the configured result or raise it."""
         if isinstance(self._result, Exception):
@@ -76,6 +81,12 @@ def _install_fake_secretspec(monkeypatch: pytest.MonkeyPatch, result: _FakeResol
 def _remove_secretspec(monkeypatch: pytest.MonkeyPatch) -> None:
     """Make ``import secretspec`` fail as if the optional extra is not installed."""
     monkeypatch.setitem(sys.modules, "secretspec", None)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_config_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Keep the tests away from the configuration directory of the user."""
+    monkeypatch.setenv("ITU_CONFIG_DIR", str(tmp_path / "isolated-config"))
 
 
 def test_secretspec_not_installed_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -116,6 +127,46 @@ def test_provider_name_is_passed_through(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert secretspec_credentials("dotenv://.env.local") is not None
     assert calls["provider"] == "dotenv://.env.local"
+
+
+def test_manifest_is_passed_to_secretspec(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """An explicit manifest is handed over to secretspec as a string."""
+    calls: dict[str, Any] = {}
+    _install_fake_secretspec(
+        monkeypatch,
+        _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": "spec-secret"}),
+        calls,
+    )
+
+    assert secretspec_credentials(manifest=tmp_path / "secretspec.toml") is not None
+    assert calls["path"] == str(tmp_path / "secretspec.toml")
+
+
+def test_without_a_manifest_the_discovery_is_left_to_secretspec(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without a manifest secretspec looks for one on its own."""
+    calls: dict[str, Any] = {}
+    _install_fake_secretspec(
+        monkeypatch,
+        _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": "spec-secret"}),
+        calls,
+    )
+
+    assert secretspec_credentials() is not None
+    assert "path" not in calls
+
+
+def test_missing_manifest_returns_none(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A manifest that does not exist disables the source."""
+    _install_fake_secretspec(monkeypatch, _FakeSecretSpecError("no_manifest"), {})
+
+    assert secretspec_credentials(manifest=tmp_path / "absent.toml") is None
+
+
+def test_unreadable_manifest_returns_none(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A manifest that cannot be read disables the source."""
+    _install_fake_secretspec(monkeypatch, OSError("IO error: Is a directory"), {})
+
+    assert secretspec_credentials(manifest=tmp_path) is None
 
 
 def test_resolution_error_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -160,6 +211,38 @@ def test_source_returns_nothing_without_provider(monkeypatch: pytest.MonkeyPatch
     _install_fake_secretspec(monkeypatch, _FakeSecretSpecError("provider_not_found"), {})
 
     assert SecretspecConfigSource(Settings)() == {}
+
+
+def test_source_hands_the_manifest_to_the_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The pydantic source passes the manifest on to secretspec."""
+    calls: dict[str, Any] = {}
+    _install_fake_secretspec(
+        monkeypatch,
+        _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": "spec-secret"}),
+        calls,
+    )
+
+    values = SecretspecConfigSource(Settings, manifest=tmp_path / "secretspec.toml")()
+
+    assert values["ties_username"] == "spec@example.org"
+    assert calls["path"] == str(tmp_path / "secretspec.toml")
+
+
+def test_settings_hand_the_manifest_to_the_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The manifest resolved by the settings reaches secretspec."""
+    monkeypatch.setenv("ITU_SECRETSPEC_MANIFEST", str(tmp_path / "secretspec.toml"))
+    calls: dict[str, Any] = {}
+    _install_fake_secretspec(
+        monkeypatch,
+        _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": "spec-secret"}),
+        calls,
+    )
+
+    settings = Settings()
+
+    assert settings.secretspec_manifest == tmp_path / "secretspec.toml"
+    assert settings.ties_username == "spec@example.org"
+    assert calls["path"] == str(tmp_path / "secretspec.toml")
 
 
 def test_source_field_value_is_unset() -> None:

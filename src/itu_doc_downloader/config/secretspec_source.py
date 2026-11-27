@@ -25,11 +25,17 @@ The secretspec SDK is an optional dependency
 (``pip install itu-doc-downloader[secretspec]``); without it — or without a
 matching provider — :func:`secretspec_credentials` returns ``None`` and the
 other credential sources apply unchanged.
+
+The manifest that declares the providers is found by secretspec itself: it
+looks for a file named ``secretspec.toml`` in the current directory and its
+parents. A manifest elsewhere is addressed explicitly — see
+:attr:`Settings.secretspec_manifest`.
 """
 
 from __future__ import annotations
 
 from importlib import import_module
+from pathlib import Path
 from typing import Any, Final
 
 from pydantic import SecretStr
@@ -38,6 +44,9 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 #: Provider alias the TIES credentials are read from.
 DEFAULT_SECRETSPEC_PROVIDER = "itu-ties"
+
+#: Name of the manifest the package looks for in its configuration directory.
+SECRETSPEC_MANIFEST_NAME = "secretspec.toml"
 
 #: Names of the declared secrets, keyed by the field they fill.
 _SECRETSPEC_KEYS: Final[dict[str, str]] = {
@@ -57,11 +66,16 @@ def _secretspec_module() -> Any:
         return None
 
 
-def secretspec_credentials(provider: str = DEFAULT_SECRETSPEC_PROVIDER) -> tuple[str, SecretStr] | None:
+def secretspec_credentials(
+    provider: str = DEFAULT_SECRETSPEC_PROVIDER,
+    manifest: Path | str | None = None,
+) -> tuple[str, SecretStr] | None:
     """Read the TIES credentials from a secretspec provider.
 
     Args:
         provider: Name or URI of the secretspec provider to resolve.
+        manifest: Path of the manifest that declares the providers. When it is
+            omitted, secretspec discovers the manifest itself.
 
     Returns:
         The user name and the password, or ``None`` when secretspec is not
@@ -71,8 +85,11 @@ def secretspec_credentials(provider: str = DEFAULT_SECRETSPEC_PROVIDER) -> tuple
     if module is None:
         return None
     try:
-        resolved = module.SecretSpec.builder().with_provider(provider).with_reason(_SECRETSPEC_REASON).load()
-    except module.SecretSpecError:
+        builder = module.SecretSpec.builder().with_provider(provider).with_reason(_SECRETSPEC_REASON)
+        if manifest is not None:
+            builder = builder.with_path(str(manifest))
+        resolved = builder.load()
+    except (module.SecretSpecError, OSError):
         return None
     values = resolved.fields()
     username = values.get(_SECRETSPEC_KEYS["username"])
@@ -90,9 +107,15 @@ class SecretspecConfigSource(PydanticBaseSettingsSource):
     comes from a higher priority source.
     """
 
-    def __init__(self, settings_cls: type[BaseSettings], provider: str = DEFAULT_SECRETSPEC_PROVIDER) -> None:
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        provider: str = DEFAULT_SECRETSPEC_PROVIDER,
+        manifest: Path | None = None,
+    ) -> None:
         super().__init__(settings_cls)
         self._provider = provider
+        self._manifest = manifest
 
     @staticmethod
     def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
@@ -101,7 +124,7 @@ class SecretspecConfigSource(PydanticBaseSettingsSource):
 
     def __call__(self) -> dict[str, Any]:
         """Return the credentials found in the secretspec provider."""
-        credentials = secretspec_credentials(self._provider)
+        credentials = secretspec_credentials(self._provider, self._manifest)
         if credentials is None:
             return {}
         username, password = credentials
