@@ -9,10 +9,11 @@ import httpx
 import pytest
 
 from itu_t_documents.api import ItuDocuments
-from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, SAML_RESPONSE_FIELD, AuthenticationError
+from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, SAML_RESPONSE_FIELD, AuthenticationError, TiesAuthenticator, find_saml_form
 from itu_t_documents.config.settings import Settings
-from itu_t_documents.models.documents import MeetingId, StudyPeriod
-from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.documents import DocumentRef, MeetingId
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import detail, listing, meetings, questions
 from tests.fakes import FakeClient
 
@@ -61,7 +62,7 @@ def test_parse_files_keeps_an_absolute_url() -> None:
 
 def test_parse_date_of_a_rendition_that_cannot_be_read() -> None:
     """A posted date that cannot be read is reported as missing."""
-    assert detail._parse_date("not a date") is None  # noqa: SLF001
+    assert detail._parse_date("not a date") is None
 
 
 def test_parse_other_meetings_skips_an_unreadable_code() -> None:
@@ -131,9 +132,6 @@ def test_top_sources_skips_other_meetings(tmp_path: Path, fake_client: FakeClien
 
 def test_download_writes_a_cached_document_to_an_output_path(tmp_path: Path, fake_client: FakeClient) -> None:
     """A cached document is copied to the requested output path."""
-    from itu_t_documents.models.documents import DocumentRef
-    from itu_t_documents.models.enums import DocFormat, DocLanguage
-
     api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
     document = DocumentRef(
         study_period=PERIOD,
@@ -158,8 +156,6 @@ def test_download_serves_a_cached_document(tmp_path: Path, fake_client: FakeClie
     ref = MeetingId.from_code("261015")
     assert ref.code == "261015"
 
-    from itu_t_documents.models.documents import DocumentRef
-
     document = DocumentRef(
         study_period=PERIOD,
         study_group=12,
@@ -168,7 +164,6 @@ def test_download_serves_a_cached_document(tmp_path: Path, fake_client: FakeClie
         subtype="GEN",
         meeting=MeetingId.from_code("261015"),
     )
-    from itu_t_documents.models.enums import DocFormat, DocLanguage
 
     api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, b"cached")
 
@@ -186,8 +181,6 @@ def test_authenticator_follows_a_redirect_without_a_location() -> None:
         return httpx.Response(200, text=f'<form action="x"><input name="{SAML_REQUEST_FIELD}" value="y"/></form>')
 
     client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
-
-    from itu_t_documents.auth.ties import TiesAuthenticator
 
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
 
@@ -207,8 +200,6 @@ def test_authenticator_reports_a_failed_status() -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
 
-    from itu_t_documents.auth.ties import TiesAuthenticator
-
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
 
     with pytest.raises(AuthenticationError, match="assertion consumer service"):
@@ -220,8 +211,6 @@ def test_authenticator_reports_a_failed_status() -> None:
 def test_saml_response_form_is_found() -> None:
     """The SAML response form of a page is found."""
     page = f'<form action="https://auth.itu.int/acs"><input name="{SAML_RESPONSE_FIELD}" value="z"/></form>'
-
-    from itu_t_documents.auth.ties import find_saml_form
 
     form = find_saml_form(page, SAML_RESPONSE_FIELD)
 

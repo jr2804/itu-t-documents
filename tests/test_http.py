@@ -12,18 +12,6 @@ from itu_t_documents.config.settings import Settings
 from itu_t_documents.http.client import PAGE_SIZE, ItuHttpClient, cache_file, decode
 
 
-def _client(tmp_path: Path, handler) -> ItuHttpClient:
-    """Return an HTTP client wired to a mock transport."""
-    settings = Settings(cache_dir=tmp_path)
-    client = ItuHttpClient(settings)
-    client._cached_client = httpx.Client(  # noqa: SLF001
-        transport=httpx.MockTransport(handler),
-        follow_redirects=True,
-        headers={"User-Agent": settings.user_agent},
-    )
-    return client
-
-
 def test_get_text_uses_the_cached_client(tmp_path: Path) -> None:
     """A page is fetched through the caching client."""
     requested: list[str] = []
@@ -37,6 +25,18 @@ def test_get_text_uses_the_cached_client(tmp_path: Path) -> None:
 
     assert body == "<html>listing</html>"
     assert requested == ["https://www.itu.int/md/T25-SG12/en"]
+
+
+def _client(tmp_path: Path, handler) -> ItuHttpClient:
+    """Return an HTTP client wired to a mock transport."""
+    settings = Settings(cache_dir=tmp_path)
+    client = ItuHttpClient(settings)
+    client._cached_client = httpx.Client(
+        transport=httpx.MockTransport(handler),
+        follow_redirects=True,
+        headers={"User-Agent": settings.user_agent},
+    )
+    return client
 
 
 def test_page_size_cookie_is_set(tmp_path: Path) -> None:

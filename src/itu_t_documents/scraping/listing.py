@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from html import unescape
 
 from lxml.html import HtmlElement
 
-from itu_t_documents.models.documents import DocumentMetadata, DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.metadata import DocumentMetadata
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping.pages import parse_page
 
 #: Pattern of the question filter links, e.g. ``…&question=Q5/12``.
@@ -28,19 +31,9 @@ _NUMBER_RE = re.compile(r"\[(?P<number>[^\]]+)\]")
 #: temporary document sub-type.
 _SUBTYPE_RE = re.compile(r"T\d{2}-SG\d{1,3}-(?P<meeting>\d{6})-TD-(?P<subtype>[A-Z0-9]+)")
 
-
-def _clean(text: str) -> str:
-    """Normalise whitespace of a scraped text fragment."""
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def _parse_date(text: str) -> date | None:
-    """Parse an ISO date as used by the listing pages."""
-    text = _clean(text)
-    try:
-        return date.fromisoformat(text)
-    except ValueError:
-        return None
+#: Pattern of the link to the next page of a listing, e.g.
+#: ``<a href="/md/meetingdoc.asp?…&amp;PageLB=900"><strong>Next</strong>``.
+_NEXT_PAGE_RE = re.compile(r'<a\s+href="(?P<href>[^"]+)"\s*>\s*<strong>\s*Next\s*</strong>', re.IGNORECASE)
 
 
 def parse_listing(
@@ -118,6 +111,15 @@ def _parse_row(
     )
 
 
+def _parse_date(text: str) -> date | None:
+    """Parse an ISO date as used by the listing pages."""
+    text = _clean(text)
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
 def _parse_questions(cell: HtmlElement) -> list[int]:
     """Extract the question numbers linked in the question column."""
     numbers: list[int] = []
@@ -175,6 +177,24 @@ def parse_total_items(page_html: str) -> int | None:
     if match is None:
         match = re.search(r"Results:\s*(\d+)", re.sub(r"<[^>]+>", "", page_html))
     return int(match.group(1)) if match is not None else None
+
+
+def parse_next_page(page_html: str) -> str | None:
+    """Return the link to the next page of a listing, if the listing has one.
+
+    A listing longer than the page size spans several pages. The page links to
+    the next one until the last page, which has no such link.
+
+    Args:
+        page_html: The HTML of a page of the listing.
+
+    Returns:
+        The path of the next page, e.g.
+        ``/md/meetingdoc.asp?lang=en&parent=T25-SG12-R&PageLB=900``, or
+        ``None`` when the page is the last one.
+    """
+    match = _NEXT_PAGE_RE.search(page_html)
+    return unescape(match["href"]) if match is not None else None
 
 
 def parse_other_meetings(page_html: str) -> list[MeetingId]:
@@ -239,3 +259,8 @@ def parse_meeting_header(page_html: str) -> dict[str, str]:
     if place is not None:
         header["place"] = place.group(1).strip()
     return header
+
+
+def _clean(text: str) -> str:
+    """Normalise whitespace of a scraped text fragment."""
+    return re.sub(r"\s+", " ", text).strip()

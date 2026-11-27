@@ -7,17 +7,12 @@ from pathlib import Path
 import pytest
 
 from itu_t_documents.errors import UnknownEntityError
-from itu_t_documents.models.catalogue import StructureGroup
-from itu_t_documents.models.documents import StudyGroup, StudyPeriod
+from itu_t_documents.models.catalogue import StructureGroup, StudyGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import catalogue
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 OTHER_PERIOD = StudyPeriod(start_year=2022, end_year=2024)
-
-
-def _read(fixtures_dir: Path, name: str) -> str:
-    """Return the content of a recorded fixture."""
-    return (fixtures_dir / name).read_text(encoding="utf-8")
 
 
 def test_parse_the_study_groups_of_a_period(fixtures_dir: Path) -> None:
@@ -69,6 +64,11 @@ def test_parse_the_structure_with_the_focus_groups(fixtures_dir: Path) -> None:
         ("JCA-IMT2020/IMT2030", "coordination"),
     ]
     assert structure.question(20).working_group.code == "WP1/13"
+
+
+def _read(fixtures_dir: Path, name: str) -> str:
+    """Return the content of a recorded fixture."""
+    return (fixtures_dir / name).read_text(encoding="utf-8")
 
 
 def test_parse_the_structure_of_an_empty_page() -> None:

@@ -7,13 +7,14 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pydantic.fields import FieldInfo
 
-from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, AuthenticationError
-from itu_t_documents.config.settings import Settings
+from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, AuthenticationError, TiesAuthenticator
+from itu_t_documents.cli import commands
+from itu_t_documents.config.settings import Settings, TomlConfigSource
 from itu_t_documents.http.client import ItuHttpClient
-from itu_t_documents.models.documents import StudyPeriod
 from itu_t_documents.scraping import detail, listing, meetings
-from tests.fakes import FakeClient
+from itu_t_documents.storage.tables import MeetingRow, row_id
 
 SAML_REQUEST_PAGE = f"""<html><body><form action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
 <input type="hidden" name="{SAML_REQUEST_FIELD}" value="PHNhbWw+"/></form></body></html>"""
@@ -24,6 +25,38 @@ SAML_RESPONSE_PAGE = """<html><body><form action="https://auth.itu.int/saml/sp/p
 DUMMY_PAGE = """<html><body onload="document.forms[0].submit()">
 <form method="POST" action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
 <input type="hidden" name="dummy" value="92b6ecc7"/></form></body></html>"""
+
+
+def test_http_client_authenticates_with_credentials(tmp_path) -> None:
+    """A login is performed with the configured credentials."""
+    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
+    client = ItuHttpClient(settings)
+    client._session_client = httpx.Client(
+        transport=httpx.MockTransport(_itu_handler),
+        follow_redirects=True,
+    )
+
+    session = client.authenticate()
+
+    assert session is client.session_client
+    client.close()
+
+
+def test_http_client_reuses_the_authenticator(tmp_path) -> None:
+    """A second login reuses the authenticator of the client."""
+    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
+    client = ItuHttpClient(settings)
+    client._session_client = httpx.Client(
+        transport=httpx.MockTransport(_itu_handler),
+        follow_redirects=True,
+    )
+
+    client.authenticate()
+    authenticator = client._authenticator
+    client.authenticate()
+
+    assert client._authenticator is authenticator
+    client.close()
 
 
 def _itu_handler(request: httpx.Request) -> httpx.Response:
@@ -42,38 +75,6 @@ def _itu_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, content=b"page")
 
 
-def test_http_client_authenticates_with_credentials(tmp_path) -> None:
-    """A login is performed with the configured credentials."""
-    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
-    client = ItuHttpClient(settings)
-    client._session_client = httpx.Client(  # noqa: SLF001
-        transport=httpx.MockTransport(_itu_handler),
-        follow_redirects=True,
-    )
-
-    session = client.authenticate()
-
-    assert session is client.session_client
-    client.close()
-
-
-def test_http_client_reuses_the_authenticator(tmp_path) -> None:
-    """A second login reuses the authenticator of the client."""
-    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
-    client = ItuHttpClient(settings)
-    client._session_client = httpx.Client(  # noqa: SLF001
-        transport=httpx.MockTransport(_itu_handler),
-        follow_redirects=True,
-    )
-
-    client.authenticate()
-    authenticator = client._authenticator  # noqa: SLF001
-    client.authenticate()
-
-    assert client._authenticator is authenticator  # noqa: SLF001
-    client.close()
-
-
 def test_authenticator_reports_a_server_error() -> None:
     """A server error during the handshake is reported."""
 
@@ -81,8 +82,6 @@ def test_authenticator_reports_a_server_error() -> None:
         return httpx.Response(500, text="boom")
 
     client = httpx.Client(transport=httpx.MockTransport(failing), follow_redirects=True)
-
-    from itu_t_documents.auth.ties import TiesAuthenticator
 
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
 
@@ -94,10 +93,8 @@ def test_authenticator_reports_a_server_error() -> None:
 
 def test_cli_mcp_command(monkeypatch: pytest.MonkeyPatch) -> None:
     """The mcp command starts the MCP server."""
-    from itu_t_documents.cli import commands
-
     started: list[bool] = []
-    monkeypatch.setattr(commands, "run_mcp", lambda: started.append(True))
+    monkeypatch.setattr("itu_t_documents.mcp.main", lambda: started.append(True))
 
     commands.mcp()
 
@@ -106,10 +103,6 @@ def test_cli_mcp_command(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_settings_source_reports_unset_fields() -> None:
     """The TOML source never sets a field on its own."""
-    from pydantic.fields import FieldInfo
-
-    from itu_t_documents.config.settings import TomlConfigSource
-
     source = TomlConfigSource(Settings, Path(__file__))
 
     value, name, complex_ = source.get_field_value(FieldInfo(annotation=int), "timeout")
@@ -117,24 +110,6 @@ def test_settings_source_reports_unset_fields() -> None:
     assert value is None
     assert name == "timeout"
     assert not complex_
-
-
-def test_mcp_period_with_an_explicit_label() -> None:
-    """The MCP tools accept an explicit study period."""
-    from itu_t_documents.mcp_server import _period
-
-    assert _period("2017-2020").label == "2017-2020"
-    assert _period(None).label == "2025-2028"
-
-
-def test_mcp_sync_skips_an_invalid_meeting_code(tmp_path: Path, fake_client: FakeClient) -> None:
-    """A meeting code that cannot be read is skipped."""
-    from itu_t_documents import mcp_server
-    from itu_t_documents.api import ItuDocuments
-
-    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
-
-    assert mcp_server._sync_meetings(api, 12, StudyPeriod(start_year=2025, end_year=2028), ["abc"]) == []
 
 
 def test_parse_files_reads_every_rendition() -> None:
@@ -213,7 +188,6 @@ def test_meeting_index_skips_an_unreadable_code() -> None:
 
 def test_store_rejects_a_row_that_was_not_persisted() -> None:
     """A row without a primary key is refused."""
-    from itu_t_documents.storage.database import _row_id
 
     class Unpersisted:
         """A row that was never written."""
@@ -221,13 +195,11 @@ def test_store_rejects_a_row_that_was_not_persisted() -> None:
         id = None
 
     with pytest.raises(RuntimeError):
-        _row_id(Unpersisted())  # type: ignore[arg-type]
+        row_id(Unpersisted())  # type: ignore[arg-type]
 
 
 def test_meeting_row_unique_key() -> None:
     """The key of a meeting is unique across the store."""
-    from itu_t_documents.storage.database import MeetingRow
-
     meeting = MeetingRow(study_group_id=3, code="270119", start_date=date(2027, 1, 19))
 
     assert meeting.unique_key == "3:270119"

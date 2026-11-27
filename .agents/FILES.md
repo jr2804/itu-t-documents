@@ -32,6 +32,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | The site navigation     | `zensical.toml`                                                 | `[project] nav`                                 |
 | CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
 | Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |
+| Release versioning    | `.github/scripts/calver.py`                                    | `next_version`, `published_version`            |
 | Domain model           | `src/itu_t_documents/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |
 | Page parsers           | `src/itu_t_documents/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py` |
 | The catalogue          | `src/itu_t_documents/catalogue.py`                          | `ItuCatalogue`, `CatalogueEntry`               |
@@ -44,7 +45,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Document file cache    | `src/itu_t_documents/storage/files.py`                      | `FileCache`                                    |
 | URL builders           | `src/itu_t_documents/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
 | High level API         | `src/itu_t_documents/api.py`                                | `ItuDocuments`, `DocumentRecord`, `SourceCount` |
-| MCP server             | `src/itu_t_documents/mcp_server.py`                         | `mcp`, the tool functions                       |
+| MCP server             | `src/itu_t_documents/mcp/`                                  | `server.py` (`mcp`, the list of the tools), one module per group of tools |
 | Recorded ITU-T pages   | `tests/fixtures/`                                               | `*.html`, the input of the parser tests        |
 | Cache directory        | `~/.cache/itu-t-documents/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |
 | Configuration file     | `~/.config/itu-t-documents/config.toml`                     | `[credentials]`, `[general]`                   |

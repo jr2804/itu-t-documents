@@ -21,14 +21,6 @@ FILES_DIRECTORY = "files"
 _REVISION_RE = re.compile(r"-R(?P<revision>\d+)\.")
 
 
-def _revision_rank(path: Path) -> tuple[int, int]:
-    """Rank a cached rendition so that the original comes before a revision."""
-    match = _REVISION_RE.search(path.name)
-    if match is None:
-        return (0, 0)
-    return (1, int(match["revision"]))
-
-
 class FileCache:
     """Stores downloaded documents in the per-user cache directory."""
 
@@ -148,3 +140,11 @@ class FileCache:
         if path is None:
             return None
         return path.read_bytes()
+
+
+def _revision_rank(path: Path) -> tuple[int, int]:
+    """Rank a cached rendition so that the original comes before a revision."""
+    match = _REVISION_RE.search(path.name)
+    if match is None:
+        return (0, 0)
+    return (1, int(match["revision"]))

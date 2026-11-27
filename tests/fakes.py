@@ -39,20 +39,6 @@ class FakeClient(ItuClient):
             follow_redirects=True,
         )
 
-    def _document_handler(self) -> Callable[[httpx.Request], httpx.Response]:
-        """Return a handler that records the requested URLs."""
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            """Return the bytes of a document."""
-            self.requested.append(str(request.url))
-            if self.denied:
-                return httpx.Response(401, content=DENIED_PAGE, headers={"content-type": "text/html"})
-            if self.missing:
-                return httpx.Response(404, content=b"not found")
-            return httpx.Response(200, content=DOCUMENT_BYTES)
-
-        return handler
-
     def get_text(self, url: str) -> str:
         """Return the fixture that matches the requested URL."""
         self.requested.append(url)
@@ -70,7 +56,11 @@ class FakeClient(ItuClient):
             return self._read("study_groups_index.html")
         if url.endswith("/md/T25-SG12/en"):
             return self._read("meeting_index.html")
-        parent = url.rsplit("parent=", maxsplit=1)[-1]
+        parent = url.rsplit("parent=", maxsplit=1)[-1].split("&", maxsplit=1)[0]
+        if parent == "T25-SG12-R":
+            # The listing of the reports is recorded with a page size of ten,
+            # so its fourteen documents span two pages.
+            return self._read("listing_reports_last_page.html" if url.endswith("&PageLB=10") else "listing_reports_first_page.html")
         if parent == "T25-SG02-C-0001":
             return self._read("detail_revised_contribution.html")
         if parent == "T25-SG02-C-0002":
@@ -105,6 +95,20 @@ class FakeClient(ItuClient):
     def close(self) -> None:
         """Close the fake client."""
         self.session.close()
+
+    def _document_handler(self) -> Callable[[httpx.Request], httpx.Response]:
+        """Return a handler that records the requested URLs."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            """Return the bytes of a document."""
+            self.requested.append(str(request.url))
+            if self.denied:
+                return httpx.Response(401, content=DENIED_PAGE, headers={"content-type": "text/html"})
+            if self.missing:
+                return httpx.Response(404, content=b"not found")
+            return httpx.Response(200, content=DOCUMENT_BYTES)
+
+        return handler
 
     def _read(self, name: str) -> str:
         """Return the content of a fixture."""

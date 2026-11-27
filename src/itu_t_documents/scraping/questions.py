@@ -28,40 +28,6 @@ _ROLE_NAMES: dict[str, Role] = {
 }
 
 
-def _clean(text: str) -> str:
-    """Normalise whitespace of a scraped text fragment."""
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def _text_with_breaks(element: HtmlElement) -> str:
-    """Return the text of an element, turning ``<br>`` into line breaks."""
-    parts: list[str] = []
-    if element.text:
-        parts.append(element.text)
-    for child in element:
-        if child.tag == "br":
-            parts.append("\n")
-        else:
-            parts.append(_text_with_breaks(child))
-        if child.tail:
-            parts.append(child.tail)
-    return "".join(parts)
-
-
-def _span_text(cell: HtmlElement, marker: str) -> str:
-    """Return the text of the first span whose id contains ``marker``."""
-    found = cell.xpath(f".//span[contains(@id, '{marker}')]")
-    if not found:
-        return ""
-    return _clean(_text_with_breaks(found[0]))
-
-
-def _last_line(text: str) -> str:
-    """Return the last non-empty line of a scraped text fragment."""
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    return lines[-1] if lines else ""
-
-
 def parse_questions(page_html: str, study_group: int) -> list[Question]:
     """Parse the questions under study of a study group.
 
@@ -139,3 +105,37 @@ def _parse_person(cell: HtmlElement) -> Person | None:
         phone=_span_text(cell, "telLabel") or None,
         fax=_span_text(cell, "faxLabel") or None,
     )
+
+
+def _span_text(cell: HtmlElement, marker: str) -> str:
+    """Return the text of the first span whose id contains ``marker``."""
+    found = cell.xpath(f".//span[contains(@id, '{marker}')]")
+    if not found:
+        return ""
+    return _clean(_text_with_breaks(found[0]))
+
+
+def _clean(text: str) -> str:
+    """Normalise whitespace of a scraped text fragment."""
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _text_with_breaks(element: HtmlElement) -> str:
+    """Return the text of an element, turning ``<br>`` into line breaks."""
+    parts: list[str] = []
+    if element.text:
+        parts.append(element.text)
+    for child in element:
+        if child.tag == "br":
+            parts.append("\n")
+        else:
+            parts.append(_text_with_breaks(child))
+        if child.tail:
+            parts.append(child.tail)
+    return "".join(parts)
+
+
+def _last_line(text: str) -> str:
+    """Return the last non-empty line of a scraped text fragment."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines[-1] if lines else ""

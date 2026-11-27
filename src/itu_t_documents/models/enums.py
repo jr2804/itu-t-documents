@@ -10,25 +10,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-class DocType(StrEnum):
-    """Document type codes as they appear in ITU-T document identifiers.
-
-    ``C``
-        Contribution submitted to a study group.
-    ``TD``
-        Temporary document produced during a meeting.
-    ``COL``
-        Collective letter (circular) issued by a study group.
-    ``R``
-        Report produced by a study group.
-    """
-
-    CONTRIBUTION = "C"
-    TEMPORARY_DOCUMENT = "TD"
-    COLLECTIVE_LETTER = "COL"
-    REPORT = "R"
-
-
 class DocFormat(StrEnum):
     """File formats offered by the ITU-T DMS for a document.
 
@@ -71,6 +52,25 @@ class DocLanguage(StrEnum):
             return cls(code.strip().upper())
         except ValueError:
             return None
+
+
+class DocType(StrEnum):
+    """Document type codes as they appear in ITU-T document identifiers.
+
+    ``C``
+        Contribution submitted to a study group.
+    ``TD``
+        Temporary document produced during a meeting.
+    ``COL``
+        Collective letter (circular) issued by a study group.
+    ``R``
+        Report produced by a study group.
+    """
+
+    CONTRIBUTION = "C"
+    TEMPORARY_DOCUMENT = "TD"
+    COLLECTIVE_LETTER = "COL"
+    REPORT = "R"
 
 
 class DocVisibility(StrEnum):

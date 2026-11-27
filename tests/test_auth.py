@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 import httpx
 import pytest
 
@@ -35,49 +37,38 @@ BLOCKED_PAGE = """<html><body><script>appLoader.configure({
 "message": "Please contact support to unlock your account" } } });</script></body></html>"""
 
 
-#: The requests that were posted to the SAML profile endpoints.
-_POSTS: list[str] = []
+@dataclass
+class FakeIdentityProvider:
+    """The state and the simulated responses of the ITU-T identity provider."""
 
-#: Whether the assertion consumer service has accepted a SAML response.
-_AUTHENTICATED = False
+    authenticated: bool = False
+    posts: list[str] = field(default_factory=list)
 
-
-def _handler(request: httpx.Request) -> httpx.Response:
-    """Simulate the ITU-T access policy and its identity provider."""
-    global _AUTHENTICATED  # noqa: PLW0603
-    url = str(request.url)
-    if request.method == "GET" and url.startswith("https://www.itu.int/dms_"):
-        if _AUTHENTICATED:
-            return httpx.Response(200, content=b"document")
-        return httpx.Response(302, headers={"location": "https://auth.itu.int/F5Networks-SSO-Req?SSO_ORIG_URI=x"})
-    if request.method == "GET" and "F5Networks-SSO-Req" in url:
-        return httpx.Response(302, headers={"location": "https://auth.itu.int/my.policy"})
-    if request.method == "GET" and url == "https://auth.itu.int/my.policy":
-        return httpx.Response(200, text=SAML_REQUEST_PAGE)
-    if request.method == "POST" and "redirectorpost" in url:
-        # The first post carries the SAML request, the second one the dummy value.
-        _POSTS.append(url)
-        if len(_POSTS) == 1:
-            return httpx.Response(200, text=LOGON_PAGE)
-        if len(_POSTS) == 2:
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        """Simulate the ITU-T access policy and its identity provider."""
+        url = str(request.url)
+        if request.method == "GET" and url.startswith("https://www.itu.int/dms_"):
+            if self.authenticated:
+                return httpx.Response(200, content=b"document")
+            return httpx.Response(302, headers={"location": "https://auth.itu.int/F5Networks-SSO-Req?SSO_ORIG_URI=x"})
+        if request.method == "GET" and "F5Networks-SSO-Req" in url:
+            return httpx.Response(302, headers={"location": "https://auth.itu.int/my.policy"})
+        if request.method == "GET" and url == "https://auth.itu.int/my.policy":
+            return httpx.Response(200, text=SAML_REQUEST_PAGE)
+        if request.method == "POST" and "redirectorpost" in url:
+            # The first post carries the SAML request, the second one the dummy value.
+            self.posts.append(url)
+            if len(self.posts) == 1:
+                return httpx.Response(200, text=LOGON_PAGE)
+            if len(self.posts) == 2:
+                return httpx.Response(200, text=DUMMY_PAGE)
+            return httpx.Response(200, text=SAML_RESPONSE_PAGE)
+        if request.method == "POST" and url == LOGON_URL:
             return httpx.Response(200, text=DUMMY_PAGE)
-        return httpx.Response(200, text=SAML_RESPONSE_PAGE)
-    if request.method == "POST" and url == LOGON_URL:
-        return httpx.Response(200, text=DUMMY_PAGE)
-    if request.method == "POST" and "post/acs" in url:
-        _AUTHENTICATED = True
-        return httpx.Response(302, headers={"location": "https://www.itu.int/dms_inf/doc.pdf"})
-    if request.method == "GET" and url.startswith("https://www.itu.int/dms_"):
-        return httpx.Response(200, content=b"document")
-    return httpx.Response(500)
-
-
-def _client() -> httpx.Client:
-    """Return a client wired to the simulated ITU-T pages."""
-    global _AUTHENTICATED  # noqa: PLW0603
-    _AUTHENTICATED = False
-    _POSTS.clear()
-    return httpx.Client(transport=httpx.MockTransport(_handler), follow_redirects=True)
+        if request.method == "POST" and "post/acs" in url:
+            self.authenticated = True
+            return httpx.Response(302, headers={"location": "https://www.itu.int/dms_inf/doc.pdf"})
+        return httpx.Response(500)
 
 
 def test_find_saml_form_returns_the_action_and_fields() -> None:
@@ -136,12 +127,12 @@ def test_login_completes_the_handshake() -> None:
 
 def test_login_reports_a_blocked_account() -> None:
     """A rejected login is reported with the message of the access policy."""
-    client = _client()
+    provider = FakeIdentityProvider()
 
     def blocked(request: httpx.Request) -> httpx.Response:
         if request.method == "POST" and str(request.url) == LOGON_URL:
             return httpx.Response(200, text=BLOCKED_PAGE)
-        return _handler(request)
+        return provider.handler(request)
 
     client = httpx.Client(transport=httpx.MockTransport(blocked), follow_redirects=True)
     authenticator = TiesAuthenticator(client, "you@example.org", "wrong")
@@ -151,6 +142,12 @@ def test_login_reports_a_blocked_account() -> None:
 
     assert not authenticator.is_authenticated
     client.close()
+
+
+def _client() -> httpx.Client:
+    """Return a client wired to the simulated ITU-T pages."""
+    provider = FakeIdentityProvider()
+    return httpx.Client(transport=httpx.MockTransport(provider.handler), follow_redirects=True)
 
 
 def test_login_reports_a_missing_login_form() -> None:

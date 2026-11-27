@@ -77,22 +77,6 @@ _TOML_SECTION_MAP: dict[str, dict[str, str]] = {
 }
 
 
-def default_config_dir() -> Path:
-    """Return the directory holding the configuration file.
-
-    The directory can be moved with the ``ITU_CONFIG_DIR`` environment
-    variable, which is read here because the setting sources are built before
-    the settings themselves are resolved.
-    """
-    config_dir = os.environ.get("ITU_CONFIG_DIR")
-    return Path(config_dir).expanduser() if config_dir else DEFAULT_CONFIG_DIR.expanduser()
-
-
-def default_config_file() -> Path:
-    """Return the path of the configuration file in the user's config directory."""
-    return default_config_dir() / CONFIG_FILE_NAME
-
-
 class TomlConfigSource(PydanticBaseSettingsSource):
     """Reads settings from the TOML configuration file.
 
@@ -103,11 +87,6 @@ class TomlConfigSource(PydanticBaseSettingsSource):
     def __init__(self, settings_cls: type[BaseSettings], path: Path) -> None:
         super().__init__(settings_cls)
         self._path = path
-
-    @staticmethod
-    def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
-        """Return the value of a single field; always unset for this source."""
-        return None, field_name, False
 
     def __call__(self) -> dict[str, Any]:
         """Return the settings found in the configuration file."""
@@ -125,27 +104,10 @@ class TomlConfigSource(PydanticBaseSettingsSource):
                     values[setting_name] = section_values[key]
         return values
 
-
-def resolve_secretspec_manifest(explicit: str | Path | None = None) -> Path | None:
-    """Resolve the manifest that declares the secretspec providers.
-
-    The manifest is looked up in this order: the explicitly passed value, the
-    ``ITU_SECRETSPEC_MANIFEST`` environment variable, the
-    ``general.secretspec_manifest`` key of the configuration file, and the
-    ``secretspec.toml`` file in the configuration directory. The last step is
-    the one the package owns, so a project can keep its manifest next to the
-    configuration file; secretspec itself only ever looks in the current
-    directory and its parents. When nothing is found the manifest is left to
-    secretspec, which discovers it on its own.
-    """
-    for candidate in (explicit, os.environ.get("ITU_SECRETSPEC_MANIFEST")):
-        if candidate:
-            return Path(str(candidate)).expanduser()
-    configured = TomlConfigSource(Settings, default_config_file())().get("secretspec_manifest")
-    if configured:
-        return Path(str(configured)).expanduser()
-    manifest = default_config_dir() / SECRETSPEC_MANIFEST_NAME
-    return manifest if manifest.is_file() else None
+    @staticmethod
+    def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        """Return the value of a single field; always unset for this source."""
+        return None, field_name, False
 
 
 class SecretspecManifestSource(PydanticBaseSettingsSource):
@@ -161,14 +123,14 @@ class SecretspecManifestSource(PydanticBaseSettingsSource):
         super().__init__(settings_cls)
         self._manifest = manifest
 
+    def __call__(self) -> dict[str, Any]:
+        """Return the manifest path, if one was found."""
+        return {"secretspec_manifest": self._manifest}
+
     @staticmethod
     def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
         """Return the value of a single field; always unset for this source."""
         return None, field_name, False
-
-    def __call__(self) -> dict[str, Any]:
-        """Return the manifest path, if one was found."""
-        return {"secretspec_manifest": self._manifest}
 
 
 class Settings(BaseSettings):
@@ -221,6 +183,20 @@ class Settings(BaseSettings):
         ),
     )
 
+    @property
+    def config_file(self) -> Path:
+        """Path of the TOML configuration file."""
+        return self.config_dir.expanduser() / CONFIG_FILE_NAME
+
+    @property
+    def resolved_cache_dir(self) -> Path:
+        """The cache directory with ``~`` expanded."""
+        return self.cache_dir.expanduser()
+
+    def has_credentials(self) -> bool:
+        """Whether both a TIES user name and a password are available."""
+        return bool(self.ties_username) and self.ties_password is not None
+
     @classmethod
     def settings_customise_sources(
         cls,
@@ -242,16 +218,40 @@ class Settings(BaseSettings):
             SecretspecConfigSource(settings_cls, manifest=manifest),
         )
 
-    @property
-    def config_file(self) -> Path:
-        """Path of the TOML configuration file."""
-        return self.config_dir.expanduser() / CONFIG_FILE_NAME
 
-    @property
-    def resolved_cache_dir(self) -> Path:
-        """The cache directory with ``~`` expanded."""
-        return self.cache_dir.expanduser()
+def resolve_secretspec_manifest(explicit: str | Path | None = None) -> Path | None:
+    """Resolve the manifest that declares the secretspec providers.
 
-    def has_credentials(self) -> bool:
-        """Whether both a TIES user name and a password are available."""
-        return bool(self.ties_username) and self.ties_password is not None
+    The manifest is looked up in this order: the explicitly passed value, the
+    ``ITU_SECRETSPEC_MANIFEST`` environment variable, the
+    ``general.secretspec_manifest`` key of the configuration file, and the
+    ``secretspec.toml`` file in the configuration directory. The last step is
+    the one the package owns, so a project can keep its manifest next to the
+    configuration file; secretspec itself only ever looks in the current
+    directory and its parents. When nothing is found the manifest is left to
+    secretspec, which discovers it on its own.
+    """
+    for candidate in (explicit, os.environ.get("ITU_SECRETSPEC_MANIFEST")):
+        if candidate:
+            return Path(str(candidate)).expanduser()
+    configured = TomlConfigSource(Settings, default_config_file())().get("secretspec_manifest")
+    if configured:
+        return Path(str(configured)).expanduser()
+    manifest = default_config_dir() / SECRETSPEC_MANIFEST_NAME
+    return manifest if manifest.is_file() else None
+
+
+def default_config_file() -> Path:
+    """Return the path of the configuration file in the user's config directory."""
+    return default_config_dir() / CONFIG_FILE_NAME
+
+
+def default_config_dir() -> Path:
+    """Return the directory holding the configuration file.
+
+    The directory can be moved with the ``ITU_CONFIG_DIR`` environment
+    variable, which is read here because the setting sources are built before
+    the settings themselves are resolved.
+    """
+    config_dir = os.environ.get("ITU_CONFIG_DIR")
+    return Path(config_dir).expanduser() if config_dir else DEFAULT_CONFIG_DIR.expanduser()

@@ -13,5 +13,6 @@ __copyright__ = "Copyright 2026, Jan.Reimes"
 
 try:
     __version__ = version("itu-t-documents")
-except PackageNotFoundError:  # pragma: no cover - installed packages always have metadata
-    __version__ = "0.0.0"  # Fallback for development mode
+except PackageNotFoundError:
+    # A source tree without the package metadata has no version to report.
+    __version__ = "0.0.0"

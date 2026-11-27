@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import re
 
-from itu_t_documents.models.catalogue import PLENARY_CODE, StructureGroup, StudyGroupStructure
-from itu_t_documents.models.documents import StudyGroup, StudyPeriod
+from itu_t_documents.models.catalogue import PLENARY_CODE, StructureGroup, StudyGroup, StudyGroupStructure
 from itu_t_documents.models.questions import Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping.pages import parse_page
 
 #: Pattern of the link to the page of a study group of a study period.
@@ -62,21 +62,6 @@ def parse_study_groups(page_html: str, period: StudyPeriod) -> list[StudyGroup]:
             continue
         numbers.add(int(match["group"]))
     return [StudyGroup(number=number, period=period) for number in sorted(numbers)]
-
-
-def _classify(code: str) -> str | None:
-    """Return the kind of the group with the given code, or ``None``."""
-    if _REGIONAL_RE.match(code):
-        return "regional"
-    if _FOCUS_RE.match(code):
-        return "focus"
-    if _RAPPORTEUR_RE.match(code):
-        return "rapporteur"
-    if _COORDINATION_RE.match(code):
-        return "coordination"
-    if _STUDY_GROUP_NAME_RE.match(code):
-        return "study"
-    return None
 
 
 def parse_structure(page_html: str, study_group: StudyGroup) -> StudyGroupStructure:
@@ -146,6 +131,21 @@ def parse_structure(page_html: str, study_group: StudyGroup) -> StudyGroupStruct
         questions=questions,
         other_groups=other_groups,
     )
+
+
+def _classify(code: str) -> str | None:
+    """Return the kind of the group with the given code, or ``None``."""
+    if _REGIONAL_RE.match(code):
+        return "regional"
+    if _FOCUS_RE.match(code):
+        return "focus"
+    if _RAPPORTEUR_RE.match(code):
+        return "rapporteur"
+    if _COORDINATION_RE.match(code):
+        return "coordination"
+    if _STUDY_GROUP_NAME_RE.match(code):
+        return "study"
+    return None
 
 
 def _clean(text: str) -> str:

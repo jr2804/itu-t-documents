@@ -3,31 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from importlib import import_module
 from pathlib import Path
 
-from itu_t_documents.api import DocumentRecord, IncompleteListingError, ItuDocuments
-from itu_t_documents.auth.ties import AuthenticationError
+from itu_t_documents.api import ItuDocuments
 from itu_t_documents.cli import args
 from itu_t_documents.config.settings import Settings
-from itu_t_documents.errors import AccessDeniedError, UnknownEntityError
+from itu_t_documents.errors import AccessDeniedError, AuthenticationError, IncompleteListingError, UnknownEntityError
 from itu_t_documents.http.client import ItuHttpClient
-from itu_t_documents.mcp_server import main as run_mcp
-from itu_t_documents.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.models.study_periods import StudyPeriod
+from itu_t_documents.storage.queries import DocumentRecord
 from itu_t_documents.urls import period_index
-
-
-def _period(label: str) -> StudyPeriod:
-    """Return the study period named by the user."""
-    return StudyPeriod.parse(label)
-
-
-def _print_documents(records: Sequence[DocumentRecord]) -> None:
-    """Print document records as a table."""
-    for record in records:
-        questions = ",".join(str(number) for number in record.questions) or "-"
-        sources = "; ".join(record.sources) or "-"
-        print(f"{record.document_id:<32} {record.doc_type.value:<4} Q{questions:<10} {record.title[:60]:<62} {sources[:40]}")
 
 
 def default() -> None:
@@ -38,7 +26,9 @@ def default() -> None:
 
 def mcp() -> None:
     """Run the MCP server over stdio."""
-    run_mcp()
+    # Loaded here and not at the top of the module: the MCP libraries take
+    # longer to import than the rest of the command line together.
+    import_module("itu_t_documents.mcp").main()
 
 
 def auth() -> None:
@@ -60,7 +50,7 @@ def auth() -> None:
 
 def meetings(
     study_group: args.StudyGroup = 12,
-    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    study_period: args.StudyPeriod = None,
 ) -> None:
     """List the meetings of a study group."""
     with ItuDocuments() as api:
@@ -68,22 +58,9 @@ def meetings(
             print(f"{meeting.code}  {meeting.label}")
 
 
-def questions(
-    study_group: args.StudyGroup = 12,
-    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
-) -> None:
-    """List the questions under study of a study group."""
-    with ItuDocuments() as api:
-        for question in api.list_questions(study_group, _period(study_period)):
-            people = ", ".join(f"{person.name} ({person.role.value})" for person in question.people)
-            print(f"{question.code:<8} {question.working_group.code:<10} {question.title}")
-            if people:
-                print(f"{'':8} {people}")
-
-
 def sync(
     study_group: args.StudyGroup = 12,
-    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    study_period: args.StudyPeriod = None,
     meeting: args.Meeting | None = None,
     doc_type: args.DocTypeOption = None,
 ) -> None:
@@ -107,7 +84,7 @@ def sync(
 def documents(
     study_group: args.StudyGroup = 12,
     *,
-    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    study_period: args.StudyPeriodFilter = None,
     meeting: args.Meeting | None = None,
     doc_type: args.DocTypeOption = None,
     question: args.Question = None,
@@ -115,9 +92,11 @@ def documents(
     limit: args.Limit = None,
 ) -> None:
     """Search the documents of a study group."""
+    period = _period(study_period) if study_period else None
     with ItuDocuments() as api:
         records = api.find_documents(
             study_group=study_group,
+            study_period=period.label if period is not None else None,
             doc_type=DocType(doc_type) if doc_type else None,
             meeting=meeting,
             question=question,
@@ -128,6 +107,14 @@ def documents(
         print("No documents found. Run `itu-t-documents sync` first.")
         return
     _print_documents(records)
+
+
+def _print_documents(records: Sequence[DocumentRecord]) -> None:
+    """Print document records as a table."""
+    for record in records:
+        questions = ",".join(str(number) for number in record.questions) or "-"
+        sources = "; ".join(record.sources) or "-"
+        print(f"{record.document_id:<32} {record.doc_type.value:<4} Q{questions:<10} {record.title[:60]:<62} {sources[:40]}")
 
 
 def download(
@@ -158,6 +145,9 @@ def download(
             print(f"{error}.")
             print("The membership of a TIES account covers only the study groups it belongs to.")
             return
+        except AuthenticationError as error:
+            print(f"{error}.")
+            return
     print(f"{path} ({path.stat().st_size} bytes)")
 
 
@@ -173,7 +163,7 @@ def periods() -> None:
         print(f"{period.label:<12} {period.code:<5} net4 index {period_index(period)}{marker}")
 
 
-def study_groups(study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD) -> None:
+def study_groups(study_period: args.StudyPeriod = None) -> None:
     """List the study groups of a study period."""
     period = _period(study_period)
     with ItuDocuments() as api:
@@ -187,7 +177,7 @@ def study_groups(study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD) -> 
 
 def structure(
     study_group: args.StudyGroup = 12,
-    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    study_period: args.StudyPeriod = None,
 ) -> None:
     """Show the structure of a study group."""
     period = _period(study_period)
@@ -207,9 +197,22 @@ def structure(
         print(f"{group.code:<12} {group.title}")
 
 
+def questions(
+    study_group: args.StudyGroup = 12,
+    study_period: args.StudyPeriod = None,
+) -> None:
+    """List the questions under study of a study group."""
+    with ItuDocuments() as api:
+        for question in api.list_questions(study_group, _period(study_period)):
+            people = ", ".join(f"{person.name} ({person.role.value})" for person in question.people)
+            print(f"{question.code:<8} {question.working_group.code:<10} {question.title}")
+            if people:
+                print(f"{'':8} {people}")
+
+
 def search(
     text: args.SearchText,
-    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+    study_period: args.StudyPeriod = None,
 ) -> None:
     """Search the working groups, questions and other groups of the ITU-T."""
     period = _period(study_period)
@@ -220,3 +223,12 @@ def search(
         return
     for entry in entries:
         print(f"{entry.kind:<16} {entry.code:<14} {entry.title}")
+
+
+def _period(label: str | None) -> StudyPeriod:
+    """Return the named study period, or the current one when none is given.
+
+    An option that is empty, as an environment variable that is set to an
+    empty string leaves it, counts as not given.
+    """
+    return StudyPeriod.parse(label) if label else StudyPeriod.current()

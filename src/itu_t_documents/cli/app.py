@@ -2,26 +2,15 @@
 
 from __future__ import annotations
 
-from importlib.metadata import version
-
 from cyclopts import App
 
+from itu_t_documents.__about__ import __version__
 from itu_t_documents.cli import commands
-
-
-# Version management
-def _get_version() -> str:
-    """Get application version from package metadata."""
-    try:
-        return version("itu-t-documents")
-    except Exception:
-        return "0.0.0"  # Fallback for development mode
-
 
 app = App(
     name="itu-t-documents",
     help="Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP.",
-    version=_get_version,
+    version=__version__,
     version_flags=["--version", "-v"],
 )
 

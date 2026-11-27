@@ -9,13 +9,6 @@ from cyclopts import Parameter
 # Application name for environment variables
 APP_NAME_UPPERCASE = "ITU_T_DOCUMENTS"
 
-#: The study period used when the user does not name one.
-DEFAULT_STUDY_PERIOD = "2025-2028"
-
-#: The study period used by the commands that read the structure of the
-#: ITU-T. It follows the current year.
-DEFAULT_PERIOD_YEAR = "2025"
-
 # Global options
 
 StudyGroup = Annotated[
@@ -29,11 +22,21 @@ StudyGroup = Annotated[
 ]
 
 StudyPeriod = Annotated[
-    str,
+    str | None,
     Parameter(
         name="--study-period",
         alias="-p",
-        help=f"Study period, e.g. {DEFAULT_STUDY_PERIOD}",
+        help="Study period, e.g. 2025-2028. Defaults to the current study period.",
+        env_var=f"{APP_NAME_UPPERCASE}_STUDY_PERIOD",
+    ),
+]
+
+StudyPeriodFilter = Annotated[
+    str | None,
+    Parameter(
+        name="--study-period",
+        alias="-p",
+        help="Study period, e.g. 2025-2028. Defaults to every study period.",
         env_var=f"{APP_NAME_UPPERCASE}_STUDY_PERIOD",
     ),
 ]
@@ -123,14 +126,5 @@ SearchText = Annotated[
         name="--search",
         alias="-s",
         help="Text to look for, e.g. speech",
-    ),
-]
-
-WorkingGroupCode = Annotated[
-    str,
-    Parameter(
-        name="--working-group",
-        alias="-w",
-        help="Working group code, e.g. WP1/12",
     ),
 ]

@@ -82,33 +82,6 @@ class MeetingInfo:
         return f"MeetingInfo({self.code!r}, {self.label!r})"
 
 
-def _parse_meeting_text(text: str) -> tuple[str, date, date | None] | None:
-    """Parse the place and the dates out of a meeting link."""
-    cleaned = re.sub(r"\s+", " ", text).strip()
-    match = _SAME_MONTH_RE.match(cleaned)
-    if match is not None:
-        month = MONTHS[match["month"]]
-        year = int(match["year"])
-        return (
-            match["place"].strip(),
-            date(year, month, int(match["first"])),
-            date(year, month, int(match["second"])),
-        )
-    match = _CROSS_MONTH_RE.match(cleaned)
-    if match is not None:
-        year = int(match["year"])
-        return (
-            match["place"].strip(),
-            date(year, MONTHS[match["first_month"]], int(match["first"])),
-            date(year, MONTHS[match["second_month"]], int(match["second"])),
-        )
-    match = _SINGLE_DAY_RE.match(cleaned)
-    if match is not None:
-        start = date(int(match["year"]), MONTHS[match["month"]], int(match["day"]))
-        return match["place"].strip(), start, None
-    return None
-
-
 def parse_meeting_index(page_html: str) -> list[MeetingInfo]:
     """Parse the meeting index page of a study group.
 
@@ -136,6 +109,33 @@ def parse_meeting_index(page_html: str) -> list[MeetingInfo]:
             continue
         meetings.append(MeetingInfo(meeting, place, start_date, end_date))
     return meetings
+
+
+def _parse_meeting_text(text: str) -> tuple[str, date, date | None] | None:
+    """Parse the place and the dates out of a meeting link."""
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    match = _SAME_MONTH_RE.match(cleaned)
+    if match is not None:
+        month = MONTHS[match["month"]]
+        year = int(match["year"])
+        return (
+            match["place"].strip(),
+            date(year, month, int(match["first"])),
+            date(year, month, int(match["second"])),
+        )
+    match = _CROSS_MONTH_RE.match(cleaned)
+    if match is not None:
+        year = int(match["year"])
+        return (
+            match["place"].strip(),
+            date(year, MONTHS[match["first_month"]], int(match["first"])),
+            date(year, MONTHS[match["second_month"]], int(match["second"])),
+        )
+    match = _SINGLE_DAY_RE.match(cleaned)
+    if match is not None:
+        start = date(int(match["year"]), MONTHS[match["month"]], int(match["day"]))
+        return match["place"].strip(), start, None
+    return None
 
 
 def parse_question_numbers(page_html: str) -> list[int]:

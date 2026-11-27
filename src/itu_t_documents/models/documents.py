@@ -20,17 +20,21 @@ study period, so their identifier carries no meeting date. The numbers are not
 consecutive: a number that was withdrawn leaves a hole.
 Temporary documents are numbered per sub-type across the study period, so
 their identifier embeds the meeting date and a sub-type such as ``GEN``.
+
+The study period an identifier names is a ``StudyPeriod`` of
+``models/study_periods.py``; what the ITU-T tells about a document is
+``DocumentMetadata`` of ``models/metadata.py``.
 """
 
 from __future__ import annotations
 
 import re
 from datetime import date
-from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, DocVisibility
+from itu_t_documents.models.study_periods import StudyPeriod
 
 #: ITU-T document identifier, e.g. ``T25-SG12-261015-TD-GEN-0520``.
 _DOCUMENT_ID_RE = re.compile(
@@ -52,21 +56,6 @@ _FORMAT_EXTENSIONS: dict[DocFormat, str] = {
     DocFormat.HTML: "htm",
 }
 
-#: Pattern of the file name extension at the end of a file name.
-_EXTENSION_RE = re.compile(r"\.(?P<extension>[a-z0-9]+)$", re.IGNORECASE)
-
-
-def default_extension(file_format: DocFormat) -> str:
-    """Return the file name extension the DMS uses for a format by default.
-
-    Args:
-        file_format: The download format.
-
-    Returns:
-        The extension, without a leading dot.
-    """
-    return _FORMAT_EXTENSIONS[file_format]
-
 
 #: DMS path segment and visibility for each document type.
 _TYPE_PATHS: dict[DocType, tuple[str, DocVisibility]] = {
@@ -75,153 +64,6 @@ _TYPE_PATHS: dict[DocType, tuple[str, DocVisibility]] = {
     DocType.COLLECTIVE_LETTER: ("col", DocVisibility.PUBLIC),
     DocType.REPORT: ("r", DocVisibility.TIES),
 }
-
-#: The study periods of the ITU-T. A period spans four years and starts in
-#: 2005, 2009, 2013, 2017, 2022, 2025 and 2029 — the period that was to start
-#: in 2021 was renamed to 2022-2024, because the extra year was used for the
-#: session that had been postponed.
-STUDY_PERIODS: tuple[tuple[int, int], ...] = (
-    (2005, 2008),
-    (2009, 2012),
-    (2013, 2016),
-    (2017, 2020),
-    (2022, 2024),
-    (2025, 2028),
-    (2029, 2032),
-)
-
-
-class StudyPeriod(BaseModel):
-    """An ITU-T study period, e.g. ``2025-2028``.
-
-    The ITU-T publishes a fixed set of study periods, so a period that the
-    ITU-T does not know cannot be constructed.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    start_year: int = Field(ge=1900, le=2999)
-    end_year: int = Field(ge=1900, le=2999)
-
-    @field_validator("end_year")
-    @classmethod
-    def _check_end_year(cls, value: int, info: object) -> int:
-        """Ensure the period spans a sensible number of years."""
-        data = getattr(info, "data", {}) or {}
-        start = data.get("start_year")
-        if isinstance(start, int) and value < start:
-            raise ValueError("end_year must not precede start_year")
-        return value
-
-    @model_validator(mode="after")
-    def _check_known(self) -> StudyPeriod:
-        """Ensure the ITU-T knows the period."""
-        if (self.start_year, self.end_year) not in STUDY_PERIODS:
-            known = ", ".join(f"{start}-{end}" for start, end in STUDY_PERIODS)
-            raise ValueError(f"the ITU-T has no study period {self.start_year}-{self.end_year}; the known periods are {known}")
-        return self
-
-    @classmethod
-    def all(cls) -> list[StudyPeriod]:
-        """Return every study period the ITU-T knows, oldest first."""
-        return [cls(start_year=start, end_year=end) for start, end in STUDY_PERIODS]
-
-    @classmethod
-    def from_year(cls, year: int) -> StudyPeriod:
-        """Return the study period that starts in the given year.
-
-        Args:
-            year: The first year of the period, e.g. 2025.
-
-        Returns:
-            The study period, e.g. ``2025-2028``.
-
-        Raises:
-            ValueError: When the ITU-T has no study period that starts in the
-                given year.
-        """
-        for start, end in STUDY_PERIODS:
-            if start == year:
-                return cls(start_year=start, end_year=end)
-        known = ", ".join(str(start) for start, _ in STUDY_PERIODS)
-        raise ValueError(f"the ITU-T has no study period starting in {year}; the periods start in {known}")
-
-    @classmethod
-    def containing(cls, year: int) -> StudyPeriod:
-        """Return the study period the given year falls into.
-
-        Args:
-            year: The year, e.g. 2026.
-
-        Returns:
-            The study period, e.g. ``2025-2028``.
-
-        Raises:
-            ValueError: When no study period covers the given year.
-        """
-        for start, end in STUDY_PERIODS:
-            if start <= year <= end:
-                return cls(start_year=start, end_year=end)
-        known = ", ".join(f"{start}-{end}" for start, end in STUDY_PERIODS)
-        raise ValueError(f"the year {year} falls into no ITU-T study period; the known periods are {known}")
-
-    @classmethod
-    def current(cls) -> StudyPeriod:
-        """Return the study period of the current year."""
-        return cls.containing(date.today().year)
-
-    @classmethod
-    def parse(cls, value: str) -> StudyPeriod:
-        """Parse ``"2025-2028"``, ``"T25"`` or the start year ``"2025"``."""
-        text = value.strip()
-        if text.upper().startswith("T") and text[1:].isdigit():
-            return cls.from_year(2000 + int(text[1:]) if int(text[1:]) < 90 else 1900 + int(text[1:]))
-        if text.isdigit():
-            return cls.from_year(int(text))
-        start_text, _, end_text = text.partition("-")
-        if not end_text:
-            raise ValueError(f"cannot parse study period from {value!r}")
-        return cls(start_year=int(start_text), end_year=int(end_text))
-
-    @property
-    def code(self) -> str:
-        """The DMS code for this period, e.g. ``T25``."""
-        return f"T{self.start_year % 100:02d}"
-
-    @property
-    def short_code(self) -> str:
-        """The two-digit start year used inside DMS download paths, e.g. ``25``."""
-        return f"{self.start_year % 100:02d}"
-
-    @property
-    def label(self) -> str:
-        """The human readable period, e.g. ``2025-2028``."""
-        return f"{self.start_year}-{self.end_year}"
-
-
-class StudyGroup(BaseModel):
-    """An ITU-T study group of a study period.
-
-    The study groups change from period to period: SG9 and SG16 existed in
-    2022-2024 and were replaced by SG21 in 2025-2028. The catalogue knows
-    the study groups of every period.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    number: int = Field(ge=1, le=99)
-    period: StudyPeriod
-    title: str = ""
-
-    @property
-    def code(self) -> str:
-        """The ITU-T code of the study group, e.g. ``SG12``."""
-        return f"SG{self.number:02d}"
-
-    @property
-    def label(self) -> str:
-        """The study group with its period, e.g. ``SG12 (2025-2028)``."""
-        return f"{self.code} ({self.period.label})"
 
 
 class MeetingId(BaseModel):
@@ -232,14 +74,6 @@ class MeetingId(BaseModel):
     start_date: date
     end_date: date | None = None
 
-    @classmethod
-    def from_code(cls, code: str) -> MeetingId:
-        """Parse a DMS meeting code such as ``261015``."""
-        text = code.strip()
-        if not (len(text) == 6 and text.isdigit()):
-            raise ValueError(f"cannot parse meeting code from {code!r}")
-        return cls(start_date=date(2000 + int(text[:2]), int(text[2:4]), int(text[4:])))
-
     @property
     def code(self) -> str:
         """The DMS code for this meeting, e.g. ``261015``."""
@@ -249,6 +83,14 @@ class MeetingId(BaseModel):
     def label(self) -> str:
         """The human readable meeting date, e.g. ``2026-10-15``."""
         return self.start_date.isoformat()
+
+    @classmethod
+    def from_code(cls, code: str) -> MeetingId:
+        """Parse a DMS meeting code such as ``261015``."""
+        text = code.strip()
+        if not (len(text) == 6 and text.isdigit()):
+            raise ValueError(f"cannot parse meeting code from {code!r}")
+        return cls(start_date=date(2000 + int(text[:2]), int(text[2:4]), int(text[4:])))
 
 
 class DocumentRef(BaseModel):
@@ -262,23 +104,6 @@ class DocumentRef(BaseModel):
     number: int = Field(ge=0)
     subtype: str | None = None
     meeting: MeetingId | None = None
-
-    @classmethod
-    def parse(cls, document_id: str) -> DocumentRef:
-        """Parse a DMS document identifier such as ``T25-SG12-261015-TD-GEN-0520``."""
-        match = _DOCUMENT_ID_RE.match(document_id.strip())
-        if match is None:
-            raise ValueError(f"cannot parse document identifier from {document_id!r}")
-        period = StudyPeriod(start_year=2000 + int(match["period"]), end_year=2000 + int(match["period"]) + 3)
-        meeting = MeetingId.from_code(match["meeting"]) if match["meeting"] else None
-        return cls(
-            study_period=period,
-            study_group=int(match["group"]),
-            doc_type=DocType(match["type"]),
-            number=int(match["number"]),
-            subtype=match["subtype"],
-            meeting=meeting,
-        )
 
     @property
     def study_group_code(self) -> str:
@@ -345,60 +170,36 @@ class DocumentRef(BaseModel):
         """Build the URL of the DMS detail page for this document."""
         return f"https://www.itu.int/md/meetingdoc.asp?lang=en&parent={self.document_id}"
 
+    @classmethod
+    def parse(cls, document_id: str) -> DocumentRef:
+        """Parse a DMS document identifier such as ``T25-SG12-261015-TD-GEN-0520``.
 
-class DocumentFile(BaseModel):
-    """One downloadable rendition of a document."""
-
-    model_config = ConfigDict(frozen=True)
-
-    format_code: str
-    language_code: str
-    size_bytes: int | None = None
-    posted: date | None = None
-    url: str
-    revision: int | None = None
-
-    @property
-    def file_format(self) -> DocFormat | None:
-        """The parsed format code, or ``None`` when the DMS uses an unknown code."""
-        return DocFormat.parse(self.format_code)
-
-    @property
-    def language(self) -> DocLanguage | None:
-        """The parsed language code, or ``None`` when the DMS uses an unknown code."""
-        return DocLanguage.parse(self.language_code)
-
-    @property
-    def extension(self) -> str:
-        """The file name extension of the rendition.
-
-        The DMS publishes a document in the format it was submitted in, so the
-        extension of the download URL is the authoritative one and the default
-        of the format is only used as a fallback.
+        The period code of the identifier names the first year of the study
+        period, so the period itself is looked up in the registry of the
+        known periods.
         """
-        match = _EXTENSION_RE.search(urlsplit(self.url).path.rsplit("/", maxsplit=1)[-1])
-        if match is not None:
-            return match.group("extension").lower()
-        file_format = self.file_format
-        if file_format is None:
-            return ""
-        return default_extension(file_format)
+        match = _DOCUMENT_ID_RE.match(document_id.strip())
+        if match is None:
+            raise ValueError(f"cannot parse document identifier from {document_id!r}")
+        period = StudyPeriod.parse(f"T{match['period']}")
+        meeting = MeetingId.from_code(match["meeting"]) if match["meeting"] else None
+        return cls(
+            study_period=period,
+            study_group=int(match["group"]),
+            doc_type=DocType(match["type"]),
+            number=int(match["number"]),
+            subtype=match["subtype"],
+            meeting=meeting,
+        )
 
 
-class DocumentMetadata(BaseModel):
-    """Metadata scraped for a document from the ITU-T DMS listing and detail pages."""
+def default_extension(file_format: DocFormat) -> str:
+    """Return the file name extension the DMS uses for a format by default.
 
-    ref: DocumentRef
-    title: str = ""
-    sources: list[str] = Field(default_factory=list)
-    questions: list[int] = Field(default_factory=list)
-    posted: date | None = None
-    revision: int | None = None
-    files: list[DocumentFile] = Field(default_factory=list)
-    detail_url: str = ""
-    summary: str | None = None
+    Args:
+        file_format: The download format.
 
-    @property
-    def document_id(self) -> str:
-        """The DMS identifier of the described document."""
-        return self.ref.document_id
+    Returns:
+        The extension, without a leading dot.
+    """
+    return _FORMAT_EXTENSIONS[file_format]

@@ -58,12 +58,36 @@ _SECRETSPEC_KEYS: Final[dict[str, str]] = {
 _SECRETSPEC_REASON = "authenticate against the ITU-T document management system"
 
 
-def _secretspec_module() -> Any:
-    """Return the optional secretspec SDK, or ``None`` when it is not installed."""
-    try:
-        return import_module("secretspec")
-    except ImportError:
-        return None
+class SecretspecConfigSource(PydanticBaseSettingsSource):
+    """Reads the TIES credentials from a secretspec provider.
+
+    Contributes only :attr:`Settings.ties_username` and
+    :attr:`Settings.ties_password`; every other setting keeps its default or
+    comes from a higher priority source.
+    """
+
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        provider: str = DEFAULT_SECRETSPEC_PROVIDER,
+        manifest: Path | None = None,
+    ) -> None:
+        super().__init__(settings_cls)
+        self._provider = provider
+        self._manifest = manifest
+
+    def __call__(self) -> dict[str, Any]:
+        """Return the credentials found in the secretspec provider."""
+        credentials = secretspec_credentials(self._provider, self._manifest)
+        if credentials is None:
+            return {}
+        username, password = credentials
+        return {"ties_username": username, "ties_password": password}
+
+    @staticmethod
+    def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        """Return the value of a single field; always unset for this source."""
+        return None, field_name, False
 
 
 def secretspec_credentials(
@@ -99,33 +123,9 @@ def secretspec_credentials(
     return username, SecretStr(password)
 
 
-class SecretspecConfigSource(PydanticBaseSettingsSource):
-    """Reads the TIES credentials from a secretspec provider.
-
-    Contributes only :attr:`Settings.ties_username` and
-    :attr:`Settings.ties_password`; every other setting keeps its default or
-    comes from a higher priority source.
-    """
-
-    def __init__(
-        self,
-        settings_cls: type[BaseSettings],
-        provider: str = DEFAULT_SECRETSPEC_PROVIDER,
-        manifest: Path | None = None,
-    ) -> None:
-        super().__init__(settings_cls)
-        self._provider = provider
-        self._manifest = manifest
-
-    @staticmethod
-    def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
-        """Return the value of a single field; always unset for this source."""
-        return None, field_name, False
-
-    def __call__(self) -> dict[str, Any]:
-        """Return the credentials found in the secretspec provider."""
-        credentials = secretspec_credentials(self._provider, self._manifest)
-        if credentials is None:
-            return {}
-        username, password = credentials
-        return {"ties_username": username, "ties_password": password}
+def _secretspec_module() -> Any:
+    """Return the optional secretspec SDK, or ``None`` when it is not installed."""
+    try:
+        return import_module("secretspec")
+    except ImportError:
+        return None

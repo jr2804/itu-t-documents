@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-from itu_t_documents.models.documents import (
-    DocumentFile,
-    DocumentMetadata,
-    DocumentRef,
-    MeetingId,
-    StudyPeriod,
-)
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import (
     DocFormat,
     DocLanguage,
@@ -16,7 +10,9 @@ from itu_t_documents.models.enums import (
     DocVisibility,
     Role,
 )
+from itu_t_documents.models.metadata import DocumentFile, DocumentMetadata
 from itu_t_documents.models.questions import Person, Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 
 __all__ = [
     "DocFormat",

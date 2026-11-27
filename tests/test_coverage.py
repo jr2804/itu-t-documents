@@ -6,12 +6,18 @@ from pathlib import Path
 
 import pytest
 
+from itu_t_documents.auth.ties import AuthenticationError
+from itu_t_documents.cli import commands
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.http.client import ItuHttpClient
-from itu_t_documents.models.documents import DocumentFile, DocumentRef, MeetingId, StudyPeriod
-from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.models.documents import DocumentRef, MeetingId
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, Role
+from itu_t_documents.models.metadata import DocumentFile
+from itu_t_documents.models.questions import Person, Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import detail, listing, questions
 from itu_t_documents.storage.files import FileCache
+from itu_t_documents.storage.queries import DocumentRecord
 from itu_t_documents.urls import detail_url_for
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
@@ -54,7 +60,7 @@ def test_document_file_extension() -> None:
 
 def test_parse_date_of_an_unreadable_value() -> None:
     """A date that cannot be read is reported as missing."""
-    assert listing._parse_date("not a date") is None  # noqa: SLF001
+    assert listing._parse_date("not a date") is None
 
 
 def test_parse_listing_skips_a_row_without_an_identifier() -> None:
@@ -102,7 +108,7 @@ def test_parse_files_ignores_a_link_without_a_suffix() -> None:
 
 def test_parse_size_of_an_unreadable_value() -> None:
     """A size that cannot be read is reported as missing."""
-    assert detail._parse_size("unknown") is None  # noqa: SLF001
+    assert detail._parse_size("unknown") is None
 
 
 def test_parse_questions_skips_a_row_without_a_question_number() -> None:
@@ -145,71 +151,8 @@ def test_http_client_authenticates(tmp_path: Path) -> None:
         assert client.settings.has_credentials()
 
 
-def test_mcp_list_questions_tool(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The questions tool returns the questions of the study group."""
-    from itu_t_documents import mcp_server
-
-    class FakeApi:
-        """A stand-in for the API."""
-
-        def list_questions(self, study_group: int, study_period) -> list:
-            """Return no question."""
-            return []
-
-        def close(self) -> None:
-            """Close the fake API."""
-
-    monkeypatch.setattr(mcp_server, "ItuDocuments", lambda *args, **kwargs: FakeApi())
-
-    import asyncio
-
-    result = asyncio.run(mcp_server.mcp.call_tool("list_questions", {"study_group": 12}))
-
-    assert (result.structured_content or {})["result"] == []
-
-
-def test_mcp_download_document_tool(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """The download tool returns the path of the downloaded document."""
-    from itu_t_documents import mcp_server
-
-    class FakeApi:
-        """A stand-in for the API."""
-
-        def download(self, ref, file_format, language, output=None) -> Path:
-            """Return the path of the downloaded document."""
-            path = tmp_path / "document.pdf"
-            path.write_bytes(b"content")
-            return path
-
-        def close(self) -> None:
-            """Close the fake API."""
-
-    monkeypatch.setattr(mcp_server, "ItuDocuments", lambda *args, **kwargs: FakeApi())
-
-    import asyncio
-    import json
-
-    result = asyncio.run(mcp_server.mcp.call_tool("download_document", {"document_id": "T25-SG12-C-0192", "file_format": "PDF"}))
-
-    payload = json.loads(getattr(result.content[0], "text", ""))
-    assert payload["size_bytes"] == 7
-
-
-def test_mcp_main_runs_the_server(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The entry point of the MCP server starts the server."""
-    from itu_t_documents import mcp_server
-
-    started: list[bool] = []
-    monkeypatch.setattr(mcp_server.mcp, "run", lambda *args, **kwargs: started.append(True))
-
-    mcp_server.main()
-
-    assert started == [True]
-
-
 def test_cli_auth_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The auth command reports a successful login."""
-    from itu_t_documents.cli import commands
 
     class FakeSettings:
         """Settings with credentials."""
@@ -242,8 +185,6 @@ def test_cli_auth_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captur
 
 def test_cli_auth_command_reports_a_failure(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The auth command reports a failed login."""
-    from itu_t_documents.auth.ties import AuthenticationError
-    from itu_t_documents.cli import commands
 
     class FakeSettings:
         """Settings with credentials."""
@@ -277,9 +218,6 @@ def test_cli_auth_command_reports_a_failure(monkeypatch: pytest.MonkeyPatch, cap
 
 def test_cli_questions_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The questions command lists the questions of a study group."""
-    from itu_t_documents.cli import commands
-    from itu_t_documents.models.enums import Role
-    from itu_t_documents.models.questions import Person, Question, WorkingGroup
 
     class FakeApi:
         """A stand-in for the API."""
@@ -316,8 +254,6 @@ def test_cli_questions_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.C
 
 def test_cli_documents_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The documents command prints the documents it found."""
-    from itu_t_documents.api import DocumentRecord
-    from itu_t_documents.cli import commands
 
     class FakeApi:
         """A stand-in for the API."""
@@ -356,7 +292,6 @@ def test_cli_documents_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.C
 
 def test_cli_download_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The download command writes the document and reports its size."""
-    from itu_t_documents.cli import commands
 
     class FakeApi:
         """A stand-in for the API."""

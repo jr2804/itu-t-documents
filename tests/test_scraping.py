@@ -5,16 +5,13 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from itu_t_documents.models.documents import MeetingId, StudyPeriod
+from itu_t_documents.models.documents import MeetingId
 from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import detail, listing, meetings, questions
+from itu_t_documents.scraping.pages import parse_page
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
-
-
-def _read(fixtures_dir: Path, name: str) -> str:
-    """Return the content of a recorded fixture."""
-    return (fixtures_dir / name).read_text(encoding="utf-8")
 
 
 def test_parse_contribution_listing(fixtures_dir: Path) -> None:
@@ -43,6 +40,30 @@ def test_parse_temporary_document_listing(fixtures_dir: Path) -> None:
     assert documents
     assert all(document.document_id.startswith("T25-SG12-261015-TD-") for document in documents)
     assert all(document.ref.subtype == "GEN" for document in documents)
+
+
+def test_parse_report_listing_spanning_two_pages(fixtures_dir: Path) -> None:
+    """A listing that spans several pages holds a part of its documents on each page."""
+    first_page = _read(fixtures_dir, "listing_reports_first_page.html")
+    last_page = _read(fixtures_dir, "listing_reports_last_page.html")
+
+    first_documents = listing.parse_listing(first_page, PERIOD, 12, DocType.REPORT)
+    last_documents = listing.parse_listing(last_page, PERIOD, 12, DocType.REPORT)
+
+    assert [document.ref.number for document in first_documents] == [14, 13, 12, 11, 10, 9, 8, 7, 6, 5]
+    assert [document.ref.number for document in last_documents] == [4, 3, 2, 1]
+    assert listing.parse_total_items(first_page) == listing.parse_total_items(last_page) == 14
+
+
+def test_parse_next_page(fixtures_dir: Path) -> None:
+    """Every page but the last one links to the next page."""
+    first_page = _read(fixtures_dir, "listing_reports_first_page.html")
+    last_page = _read(fixtures_dir, "listing_reports_last_page.html")
+
+    assert listing.parse_next_page(first_page) == "/md/meetingdoc.asp?lang=en&parent=T25-SG12-R&PageLB=10"
+    assert listing.parse_next_page(last_page) is None
+    assert listing.parse_next_page(_read(fixtures_dir, "listing_contributions.html")) is None
+    assert listing.parse_next_page("") is None
 
 
 def test_parse_detail_page(fixtures_dir: Path) -> None:
@@ -105,8 +126,6 @@ def test_parse_subtypes_of_an_empty_page() -> None:
 
 def test_parse_page_of_broken_markup() -> None:
     """A page that holds no markup at all is reported as such."""
-    from itu_t_documents.scraping.pages import parse_page
-
     assert parse_page("") is None
     assert parse_page("   ") is None
     assert parse_page("<html><body><p>text</p></body></html>") is not None
@@ -177,3 +196,8 @@ def test_parse_other_meetings(fixtures_dir: Path) -> None:
 
     assert "270119" in {meeting.code for meeting in found}
     assert "250114" in {meeting.code for meeting in found}
+
+
+def _read(fixtures_dir: Path, name: str) -> str:
+    """Return the content of a recorded fixture."""
+    return (fixtures_dir / name).read_text(encoding="utf-8")

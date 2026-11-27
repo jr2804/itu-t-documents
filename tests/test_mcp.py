@@ -5,17 +5,18 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from itu_t_documents import mcp_server
-from itu_t_documents.api import DocumentRecord, SourceCount
 from itu_t_documents.catalogue import CatalogueEntry
-from itu_t_documents.models.catalogue import StudyGroupStructure
-from itu_t_documents.models.documents import StudyGroup
-from itu_t_documents.models.enums import DocType
+from itu_t_documents.mcp import mcp, support
+from itu_t_documents.models.catalogue import StudyGroup, StudyGroupStructure
+from itu_t_documents.models.documents import DocumentRef
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
 from itu_t_documents.models.questions import Question, WorkingGroup
+from itu_t_documents.storage.queries import DocumentRecord, SourceCount
 
 
 class FakeMeeting:
@@ -66,6 +67,13 @@ class FakeApi:
         """Create the fake API."""
         self.calls: list[tuple] = []
         self.catalogue = FakeCatalogue()
+        self.downloaded: Path | None = None
+
+    def download(self, ref: DocumentRef, file_format: DocFormat, language: DocLanguage, output: Path | None = None) -> Path:
+        """Return the path of the downloaded document."""
+        self.calls.append(("download", ref.document_id, file_format, language, output))
+        assert self.downloaded is not None, "the test names the file the download returns"
+        return self.downloaded
 
     def __enter__(self) -> FakeApi:
         return self
@@ -88,7 +96,7 @@ class FakeApi:
 
     def sync_meeting(self, study_group: int, meeting, study_period, doc_types=()) -> int:
         """Store the documents of a meeting."""
-        self.calls.append(("sync_meeting", study_group, meeting.code))
+        self.calls.append(("sync_meeting", study_group, meeting.code, study_period.label))
         return 1
 
     def documents_for_question(self, **kwargs) -> list[DocumentRecord]:
@@ -109,9 +117,9 @@ class FakeApi:
             )
         ]
 
-    def contributions_by_source(self, study_group: int, source: str) -> list[DocumentRecord]:
+    def contributions_by_source(self, study_group: int, source: str, study_period: str | None = None) -> list[DocumentRecord]:
         """Return the contributions of a source."""
-        self.calls.append(("contributions_by_source", study_group, source))
+        self.calls.append(("contributions_by_source", study_group, source, study_period))
         return [
             DocumentRecord(
                 document_id="T25-SG12-C-0192",
@@ -138,41 +146,52 @@ class FakeApi:
         return []
 
 
-@pytest.fixture
-def fake_api(monkeypatch: pytest.MonkeyPatch) -> FakeApi:
-    """Replace the API used by the MCP tools."""
-    api = FakeApi()
-    monkeypatch.setattr(mcp_server, "ItuDocuments", lambda *args, **kwargs: api)
-    return api
-
-
-def _call(name: str, arguments: dict) -> object:
-    """Call an MCP tool and return its result."""
-    return asyncio.run(mcp_server.mcp.call_tool(name, arguments))
-
-
-def _payload(result) -> Any:
-    """Return the decoded payload of a tool result."""
-    if result.content:
-        return json.loads(result.content[0].text)
-    return result.structured_content["result"]
-
-
-def test_the_server_offers_the_expected_tools() -> None:
-    """The server registers the tools for the three user stories."""
-    tools = asyncio.run(mcp_server.mcp.list_tools())
-
-    names = {tool.name for tool in tools}
-    assert {"list_meetings", "list_questions", "documents_for_question", "contributions_by_source", "top_sources"} <= names
-
-
 def test_list_meetings_tool(fake_api: FakeApi) -> None:
     """The meetings tool returns the meetings of the study group."""
     result = _call("list_meetings", {"study_group": 12})
 
     payload = _payload(result)
     assert [item["meeting"] for item in payload] == ["270119", "261015"]
+    assert payload[0] == {
+        "meeting": "270119",
+        "place": "Geneva",
+        "start_date": "2027-01-19",
+        "end_date": "2027-01-27",
+        "label": "Geneva (270119)",
+    }
     assert ("list_meetings", 12) in fake_api.calls
+
+
+def test_list_questions_tool(fake_api: FakeApi) -> None:
+    """The questions tool returns the questions of the study group."""
+    result = _call("list_questions", {"study_group": 12})
+
+    assert _payload(result) == []
+    assert ("list_questions", 12) in fake_api.calls
+
+
+def test_download_document_tool(fake_api: FakeApi, tmp_path: Path) -> None:
+    """The download tool returns the path of the downloaded document."""
+    document_file = tmp_path / "document.docx"
+    document_file.write_bytes(b"content")
+    fake_api.downloaded = document_file
+
+    result = _call("download_document", {"document_id": "T25-SG12-C-0192", "file_format": "msw", "language": "f"})
+
+    payload = _payload(result)
+    assert payload == {"path": str(document_file), "size_bytes": 7}
+    assert ("download", "T25-SG12-C-0192", DocFormat.WORD, DocLanguage.FRENCH, None) in fake_api.calls
+
+
+def test_download_document_tool_writes_the_named_file(fake_api: FakeApi, tmp_path: Path) -> None:
+    """The download tool passes the output path on."""
+    fake_api.downloaded = tmp_path / "document.docx"
+    fake_api.downloaded.write_bytes(b"content")
+
+    _call("download_document", {"document_id": "T25-SG12-C-0192", "output_path": "report.docx"})
+
+    call = next(call for call in fake_api.calls if call[0] == "download")
+    assert call[4] == Path("report.docx")
 
 
 def test_documents_for_question_tool(fake_api: FakeApi) -> None:
@@ -186,6 +205,17 @@ def test_documents_for_question_tool(fake_api: FakeApi) -> None:
     call = next(call for call in fake_api.calls if call[0] == "documents_for_question")
     assert call[1]["question"] == 5
     assert call[1]["meeting"] == "261015"
+    assert call[1]["study_period"] is None
+
+
+def test_documents_for_question_tool_with_a_period(fake_api: FakeApi) -> None:
+    """The documents tool names the study period to the stored search."""
+    _call("documents_for_question", {"question": 5, "study_group": 12, "study_period": "2022-2024"})
+
+    syncs = [call for call in fake_api.calls if call[0] == "sync_meeting"]
+    assert [call[3] for call in syncs] == ["2022-2024", "2022-2024"]
+    call = next(call for call in fake_api.calls if call[0] == "documents_for_question")
+    assert call[1]["study_period"] == "2022-2024"
 
 
 def test_contributions_by_source_tool(fake_api: FakeApi) -> None:
@@ -195,7 +225,14 @@ def test_contributions_by_source_tool(fake_api: FakeApi) -> None:
     payload = _payload(result)
     assert payload[0]["document_id"] == "T25-SG12-C-0192"
     assert payload[0]["type"] == "C"
-    assert ("contributions_by_source", 12, "TU Berlin") in fake_api.calls
+    assert ("contributions_by_source", 12, "TU Berlin", None) in fake_api.calls
+
+
+def test_contributions_by_source_tool_with_a_period(fake_api: FakeApi) -> None:
+    """The contributions tool names the study period to the stored search."""
+    _call("contributions_by_source", {"source": "TU Berlin", "study_group": 12, "study_period": "2022-2024"})
+
+    assert ("contributions_by_source", 12, "TU Berlin", "2022-2024") in fake_api.calls
 
 
 def test_top_sources_tool(fake_api: FakeApi) -> None:
@@ -216,6 +253,15 @@ def test_search_documents_tool(fake_api: FakeApi) -> None:
     assert _payload(result) == []
     call = next(call for call in fake_api.calls if call[0] == "find_documents")
     assert call[1]["doc_type"] is DocType.TEMPORARY_DOCUMENT
+    assert call[1]["study_period"] is None
+
+
+def test_search_documents_tool_with_a_period(fake_api: FakeApi) -> None:
+    """The search tool passes the named study period to the stored search."""
+    _call("search_documents", {"study_group": 12, "study_period": "2017-2020"})
+
+    call = next(call for call in fake_api.calls if call[0] == "find_documents")
+    assert call[1]["study_period"] == "2017-2020"
 
 
 def test_list_periods_tool() -> None:
@@ -253,3 +299,23 @@ def test_search_structure_tool(fake_api: FakeApi) -> None:
     payload = _payload(result)
     assert payload[0]["code"] == "Q5/12"
     assert payload[0]["kind"] == "question"
+
+
+@pytest.fixture
+def fake_api(monkeypatch: pytest.MonkeyPatch) -> FakeApi:
+    """Replace the API used by the MCP tools."""
+    api = FakeApi()
+    monkeypatch.setattr(support, "ItuDocuments", lambda *args, **kwargs: api)
+    return api
+
+
+def _call(name: str, arguments: dict) -> object:
+    """Call an MCP tool and return its result."""
+    return asyncio.run(mcp.call_tool(name, arguments))
+
+
+def _payload(result) -> Any:
+    """Return the decoded payload of a tool result."""
+    if result.content:
+        return json.loads(result.content[0].text)
+    return result.structured_content["result"]

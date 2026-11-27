@@ -1,4 +1,4 @@
-"""Domain model for the structure of an ITU-T study group.
+"""Domain model for an ITU-T study group and its structure.
 
 The ITU-T publishes the structure of a study group on its "Structure" page:
 the plenary, the working groups, the questions under study and the other
@@ -12,11 +12,36 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 
 from itu_t_documents.errors import UnknownEntityError
-from itu_t_documents.models.documents import StudyGroup, StudyPeriod
 from itu_t_documents.models.questions import Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 
 #: The code of the plenary of a study group.
 PLENARY_CODE = "PLEN"
+
+
+class StudyGroup(BaseModel):
+    """An ITU-T study group of a study period.
+
+    The study groups change from period to period: SG9 and SG16 existed in
+    2022-2024 and were replaced by SG21 in 2025-2028. The catalogue knows
+    the study groups of every period.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    number: int = Field(ge=1, le=99)
+    period: StudyPeriod
+    title: str = ""
+
+    @property
+    def code(self) -> str:
+        """The ITU-T code of the study group, e.g. ``SG12``."""
+        return f"SG{self.number:02d}"
+
+    @property
+    def label(self) -> str:
+        """The study group with its period, e.g. ``SG12 (2025-2028)``."""
+        return f"{self.code} ({self.period.label})"
 
 
 class StructureGroup(BaseModel):

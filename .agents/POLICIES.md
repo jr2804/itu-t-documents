@@ -38,6 +38,8 @@ Universal defaults. Project-specific standards live in child AGENTS.md.
   params/imports before finishing.
 - **Duplication vs. abstraction** — prefer duplication over wrong premature
   abstraction.
+- **Module size** — no super-modules. Below 200 lines (`wc -l`), about 150 as
+  the target; split by responsibility when a module outgrows them.
 - No new code-quality tooling by default — opt in per project.
 
 ## Completion checklist

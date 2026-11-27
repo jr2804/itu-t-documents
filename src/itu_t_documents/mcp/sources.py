@@ -1,0 +1,37 @@
+"""The tool that counts the documents of the most prolific sources."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from itu_t_documents.mcp.payloads import source_payload
+from itu_t_documents.mcp.support import open_api, resolve_period, sync_meetings
+
+
+def top_sources(
+    study_group: int = 12,
+    last_meetings: int = 3,
+    study_period: str | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Show the sources that submitted the most documents.
+
+    Use this to answer "which source submitted the most documents (TD + C) to
+    the last three meetings?".
+
+    Args:
+        study_group: The study group number, e.g. 12.
+        last_meetings: How many of the most recent meetings to consider.
+        study_period: The study period, e.g. "2025-2028".
+        limit: The maximum number of sources to report.
+
+    Returns:
+        The sources with their document counts, most prolific first.
+    """
+    period = resolve_period(study_period)
+    with open_api() as api:
+        meetings = [meeting.code for meeting in api.list_meetings(study_group, period)]
+        selected = tuple(meetings[:last_meetings]) if meetings else ()
+        sync_meetings(api, study_group, period, list(selected))
+        counts = api.top_sources(study_group=study_group, meetings=selected, limit=limit)
+        return [source_payload(count) for count in counts]

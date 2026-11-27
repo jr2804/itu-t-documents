@@ -6,9 +6,12 @@ from datetime import date
 
 import pytest
 
-from itu_t_documents.models.documents import DocumentFile, DocumentRef, MeetingId, StudyGroup, StudyPeriod
+from itu_t_documents.models.catalogue import StudyGroup
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, Role
+from itu_t_documents.models.metadata import DocumentFile
 from itu_t_documents.models.questions import Person, Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 
 
 def test_study_period_from_label() -> None:
@@ -88,6 +91,24 @@ def test_document_ref_rejects_garbage() -> None:
     """An unparsable document identifier is rejected."""
     with pytest.raises(ValueError):
         DocumentRef.parse("not-a-document")
+
+
+def test_document_ref_parses_a_document_of_the_renamed_study_period() -> None:
+    """The period code of the identifier names the first year of the period.
+
+    The 2022-2024 period is the one that does not span four years, so the end
+    year cannot be derived from the start year.
+    """
+    ref = DocumentRef.parse("T22-SG12-C-0192")
+
+    assert ref.study_period.label == "2022-2024"
+    assert ref.document_id == "T22-SG12-C-0192"
+
+
+def test_document_ref_rejects_an_unknown_study_period() -> None:
+    """A period code that names no study period is refused."""
+    with pytest.raises(ValueError, match="no study period starting in 2021"):
+        DocumentRef.parse("T21-SG12-C-0192")
 
 
 def test_contribution_identifier_has_no_meeting() -> None:

@@ -66,23 +66,6 @@ class _FakeBuilder:
         return self._result
 
 
-def _install_fake_secretspec(monkeypatch: pytest.MonkeyPatch, result: _FakeResolved | Exception, calls: dict[str, Any]) -> None:
-    """Register a fake ``secretspec`` module for the duration of a test."""
-    module = types.ModuleType("secretspec")
-    module.__dict__.update(
-        {
-            "SecretSpecError": _FakeSecretSpecError,
-            "SecretSpec": types.SimpleNamespace(builder=lambda: _FakeBuilder(result, calls)),
-        },
-    )
-    monkeypatch.setitem(sys.modules, "secretspec", module)
-
-
-def _remove_secretspec(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make ``import secretspec`` fail as if the optional extra is not installed."""
-    monkeypatch.setitem(sys.modules, "secretspec", None)
-
-
 @pytest.fixture(autouse=True)
 def _isolated_config_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Keep the tests away from the configuration directory of the user."""
@@ -94,6 +77,11 @@ def test_secretspec_not_installed_returns_none(monkeypatch: pytest.MonkeyPatch) 
     _remove_secretspec(monkeypatch)
 
     assert secretspec_credentials() is None
+
+
+def _remove_secretspec(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make ``import secretspec`` fail as if the optional extra is not installed."""
+    monkeypatch.setitem(sys.modules, "secretspec", None)
 
 
 def test_credentials_are_read_from_the_provider(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -320,3 +308,15 @@ def test_configuration_file_wins_over_secretspec(monkeypatch: pytest.MonkeyPatch
     assert settings.ties_username == "file@example.org"
     assert settings.ties_password is not None
     assert settings.ties_password.get_secret_value() == "file-secret"
+
+
+def _install_fake_secretspec(monkeypatch: pytest.MonkeyPatch, result: _FakeResolved | Exception, calls: dict[str, Any]) -> None:
+    """Register a fake ``secretspec`` module for the duration of a test."""
+    module = types.ModuleType("secretspec")
+    module.__dict__.update(
+        {
+            "SecretSpecError": _FakeSecretSpecError,
+            "SecretSpec": types.SimpleNamespace(builder=lambda: _FakeBuilder(result, calls)),
+        },
+    )
+    monkeypatch.setitem(sys.modules, "secretspec", module)

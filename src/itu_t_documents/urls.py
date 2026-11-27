@@ -7,8 +7,9 @@ parameter that identifies the meeting and the document type.
 
 from __future__ import annotations
 
-from itu_t_documents.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.study_periods import StudyPeriod
 
 #: Root of the ITU-T web site.
 BASE_URL = "https://www.itu.int"
@@ -114,6 +115,20 @@ def meeting_summary_url(period: StudyPeriod, study_group: int, meeting: MeetingI
     return f"{BASE_URL}/md/{period.code}-SG{study_group:02d}-{meeting.code}/sum/en"
 
 
+def meeting_index_url(period: StudyPeriod, study_group: int) -> str:
+    """Return the URL of the index of the meetings of a study group.
+
+    Args:
+        period: The study period.
+        study_group: The study group number.
+
+    Returns:
+        The absolute URL of the page that lists every meeting of the study
+        group in the study period, the meeting of the next session first.
+    """
+    return f"{BASE_URL}/md/{period.code}-SG{study_group:02d}/en"
+
+
 def listing_url(
     period: StudyPeriod,
     study_group: int,
@@ -147,18 +162,6 @@ def listing_url(
     return f"{MEETING_DOC_URL}?lang={LANGUAGE}&parent={'-'.join(parts)}"
 
 
-def detail_url(document_id: str) -> str:
-    """Return the URL of the detail page of a document.
-
-    Args:
-        document_id: The DMS identifier of the document.
-
-    Returns:
-        The absolute URL of the detail page.
-    """
-    return f"{MEETING_DOC_URL}?lang={LANGUAGE}&parent={document_id}"
-
-
 def detail_url_for(ref: DocumentRef) -> str:
     """Return the URL of the detail page of a document.
 
@@ -169,3 +172,15 @@ def detail_url_for(ref: DocumentRef) -> str:
         The absolute URL of the detail page.
     """
     return detail_url(ref.document_id)
+
+
+def detail_url(document_id: str) -> str:
+    """Return the URL of the detail page of a document.
+
+    Args:
+        document_id: The DMS identifier of the document.
+
+    Returns:
+        The absolute URL of the detail page.
+    """
+    return f"{MEETING_DOC_URL}?lang={LANGUAGE}&parent={document_id}"

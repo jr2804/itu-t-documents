@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from itu_t_documents.config.settings import Settings
-from itu_t_documents.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.storage.files import FileCache
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)

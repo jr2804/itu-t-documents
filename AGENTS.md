@@ -95,9 +95,12 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
 
 - The ITU-T meeting document pages are ISO-8859-1 and declare no charset — decode
   them as such. The `net4` pages are UTF-8. See `http/client.py:decode`.
-- The document listings are paginated. Set the `ITUDMS_PageSize` cookie to 900 or
-  a listing is silently truncated. The listings report their size — refuse a
-  listing that holds fewer documents than it reports.
+- The document listings are paginated. Set the `ITUDMS_PageSize` cookie to 900,
+  the most the web interface offers, or a listing is silently truncated at 50
+  rows; then follow the `Next` link of every page until the last one, because
+  the contributions of a study period span more than one page. The listings
+  report their size — refuse a listing that holds fewer documents than it
+  reports.
 - The aggregate listing of the temporary documents of a meeting previews five
   documents per sub-type. Read the listing of every sub-type, never the
   aggregate one alone.
@@ -112,10 +115,19 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   it as a missing membership, never log in again.
 - The study groups, the working groups and the questions change from study
   period to study period. Read them from the catalogue, never hard code them.
+  The same holds for the current study period: it is `StudyPeriod.current()`,
+  never a label written in the code. The periods do not all span four years, so
+  the period code of a document identifier is looked up in `STUDY_PERIODS`.
 - Scraped text is untrusted input: it reaches the domain model through the
   pydantic models in `models/`, never as plain dictionaries.
 - Anything already seen must be answerable without authentication: the metadata
   store and the file cache are the sources of truth for cached data.
+- A listing and a detail page tell different things about a document. The store
+  adds what each of them tells (`store_document`, `store_detail`); neither may
+  erase what the other told.
+- The CLI, the API and the MCP server change together: a question one of them
+  can answer, the others answer too, in the same change. The counterpart of
+  every MCP tool is listed in `src/itu_t_documents/mcp/AGENTS.md`.
 - New behaviour needs a test — the coverage gate is 100%.
 - Never commit credentials. The configuration file lives in
   `~/.config/itu-t-documents`, outside the repository. TIES credentials
@@ -125,8 +137,8 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   configuration file, the `secretspec.toml` of the configuration directory and
   the discovery of secretspec — in that order.
 - The version of the package comes from the git tag and is never written into
-  `pyproject.toml`. The tag is a CalVer tag, `YYYY.MINOR.PATCH`. See
-  `docs/release.md`.
+  `pyproject.toml`. The tag is a CalVer tag, `YYYY.MM.N`. Every push to
+  `main` is tagged and released automatically. See `docs/release.md`.
 
 ## Child DOX Index
 
@@ -139,6 +151,7 @@ Top-level boundaries in this project:
 - `src/itu_t_documents/scraping/` (parsers of the ITU-T pages)
 - `src/itu_t_documents/auth/` (the TIES handshake)
 - `src/itu_t_documents/storage/` (the SQLite metadata store and the file cache)
+- `src/itu_t_documents/mcp/` (the MCP server — see its `AGENTS.md`)
 - `tests/` (test suite)
 - `tests/fixtures/` (recorded ITU-T pages used by the parser tests)
 - `docs/` (the documentation site — see `docs/AGENTS.md`)

@@ -19,9 +19,9 @@ from dataclasses import dataclass
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.errors import UnknownEntityError
 from itu_t_documents.http.client import ItuClient, ItuHttpClient
-from itu_t_documents.models.catalogue import StudyGroupStructure
-from itu_t_documents.models.documents import StudyGroup, StudyPeriod
+from itu_t_documents.models.catalogue import StudyGroup, StudyGroupStructure
 from itu_t_documents.models.questions import Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import catalogue as catalogue_scraper
 from itu_t_documents.urls import period_index, structure_url, study_groups_index_url
 
@@ -67,20 +67,6 @@ class ItuCatalogue:
 
     def __exit__(self, *exc_info: object) -> None:
         self.close()
-
-    # ------------------------------------------------------------------
-    # Study periods
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def periods() -> list[StudyPeriod]:
-        """Return every study period the ITU-T knows, oldest first."""
-        return StudyPeriod.all()
-
-    @staticmethod
-    def current_period() -> StudyPeriod:
-        """Return the study period of the current year."""
-        return StudyPeriod.current()
 
     # ------------------------------------------------------------------
     # Study groups
@@ -217,6 +203,20 @@ class ItuCatalogue:
         for study_group in self.study_groups(period):
             entries.extend(self._search_study_group(study_group, wanted))
         return sorted(entries, key=lambda entry: (entry.kind, entry.code))
+
+    # ------------------------------------------------------------------
+    # Study periods
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def periods() -> list[StudyPeriod]:
+        """Return every study period the ITU-T knows, oldest first."""
+        return StudyPeriod.all()
+
+    @staticmethod
+    def current_period() -> StudyPeriod:
+        """Return the study period of the current year."""
+        return StudyPeriod.current()
 
     def _search_study_group(self, study_group: StudyGroup, wanted: str) -> list[CatalogueEntry]:
         """Return the entries of a study group that mention the given text."""

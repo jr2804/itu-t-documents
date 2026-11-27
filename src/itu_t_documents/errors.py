@@ -28,10 +28,9 @@ class AccessDeniedError(ItuError):
 class IncompleteListingError(ItuError):
     """Raised when a document listing holds fewer documents than it reports.
 
-    The ITU-T truncates a listing that is longer than the page size the web
-    interface accepts. The package sets that page size, so a truncated
-    listing means that the site changed and the documents of the listing
-    would be lost silently.
+    Every page of a listing is read, so a listing that still holds fewer
+    documents than it reports means that the site changed and the documents
+    of the listing would be lost silently.
     """
 
 

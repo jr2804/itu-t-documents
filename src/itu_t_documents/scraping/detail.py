@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
-from itu_t_documents.models.documents import DocumentFile
+from itu_t_documents.models.metadata import DocumentFile
 from itu_t_documents.scraping.pages import parse_page
 
 #: Pattern of the format and language suffix of a download URL. The DMS

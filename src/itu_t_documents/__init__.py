@@ -8,7 +8,7 @@ metadata store and document cache.
 from __future__ import annotations
 
 from itu_t_documents.__about__ import __version__
-from itu_t_documents.api import DocumentRecord, ItuDocuments, SourceCount
+from itu_t_documents.api import ItuDocuments
 from itu_t_documents.catalogue import CatalogueEntry, ItuCatalogue
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.errors import (
@@ -18,19 +18,15 @@ from itu_t_documents.errors import (
     ItuError,
     UnknownEntityError,
 )
-from itu_t_documents.models.catalogue import StructureGroup, StudyGroupStructure
-from itu_t_documents.models.documents import (
-    DocumentFile,
-    DocumentMetadata,
-    DocumentRef,
-    MeetingId,
-    StudyGroup,
-    StudyPeriod,
-)
+from itu_t_documents.models.catalogue import StructureGroup, StudyGroup, StudyGroupStructure
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, DocVisibility, Role
+from itu_t_documents.models.metadata import DocumentFile, DocumentMetadata
 from itu_t_documents.models.questions import Person, Question, WorkingGroup
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.storage.database import MetadataStore
 from itu_t_documents.storage.files import FileCache
+from itu_t_documents.storage.queries import DocumentRecord, SourceCount
 
 __all__ = [
     "AccessDeniedError",

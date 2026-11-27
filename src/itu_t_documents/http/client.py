@@ -28,8 +28,8 @@ HTTP_CACHE_FILE = "http-cache.sqlite"
 HTTP_CACHE_TTL = 60 * 60 * 24
 
 #: Number of documents the ITU-T document pages show per page. The value is
-#: stored in a cookie by the web interface; the maximum the interface accepts
-#: is 900, which keeps every listing on a single page.
+#: stored in a cookie by the web interface, whose page size control goes up
+#: to 900. A longer listing spans several pages, all of which are read.
 PAGE_SIZE = 900
 
 #: Charset used by the ITU-T meeting document pages. Those pages are encoded
@@ -62,19 +62,6 @@ class ItuClient(Protocol):
     def close(self) -> None:
         """Close the client."""
         ...
-
-
-def decode(response: httpx.Response) -> str:
-    """Decode the body of a response.
-
-    Args:
-        response: The response to decode.
-
-    Returns:
-        The decoded text of the response.
-    """
-    charset = response.charset_encoding or DEFAULT_CHARSET
-    return response.content.decode(charset, errors="replace")
 
 
 class ItuHttpClient:
@@ -183,6 +170,19 @@ class ItuHttpClient:
 
     def __exit__(self, *exc_info: object) -> None:
         self.close()
+
+
+def decode(response: httpx.Response) -> str:
+    """Decode the body of a response.
+
+    Args:
+        response: The response to decode.
+
+    Returns:
+        The decoded text of the response.
+    """
+    charset = response.charset_encoding or DEFAULT_CHARSET
+    return response.content.decode(charset, errors="replace")
 
 
 def cache_file(settings: Settings) -> Path:

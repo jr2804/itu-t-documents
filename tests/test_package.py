@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import runpy
 from importlib.metadata import PackageNotFoundError
 
@@ -27,19 +28,24 @@ def test_package_exports_the_public_api() -> None:
 
 
 def test_cli_version_uses_metadata() -> None:
-    """The CLI version callback reads installed package metadata."""
-    assert cli_app._get_version()
+    """The CLI reports the version of the package metadata."""
+    assert cli_app.app.version == __about__.__version__
+    assert cli_app.app.version
 
 
-def test_cli_version_falls_back_without_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The CLI still reports a version when package metadata is unavailable."""
+def test_the_version_falls_back_without_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The package still reports a version when package metadata is unavailable."""
 
     def missing(_name: str) -> str:
         raise PackageNotFoundError
 
-    monkeypatch.setattr(cli_app, "version", missing)
-
-    assert cli_app._get_version() == "0.0.0"
+    monkeypatch.setattr("importlib.metadata.version", missing)
+    try:
+        reloaded = importlib.reload(__about__)
+        assert reloaded.__version__ == "0.0.0"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(__about__)
 
 
 def test_cli_main_invokes_app(monkeypatch: pytest.MonkeyPatch) -> None:

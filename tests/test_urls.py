@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from itu_t_documents.models.documents import MeetingId, StudyPeriod
+from itu_t_documents.models.documents import MeetingId
 from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.urls import (
     PERIOD_INDICES,
     detail_url,
     listing_url,
+    meeting_index_url,
     meeting_summary_url,
     period_index,
     questions_url,
@@ -78,6 +80,13 @@ def test_meeting_summary_url() -> None:
     url = meeting_summary_url(PERIOD, 12, MEETING)
 
     assert url == "https://www.itu.int/md/T25-SG12-261015/sum/en"
+
+
+def test_meeting_index_url() -> None:
+    """The index of the meetings of a study group is addressed by study group only."""
+    url = meeting_index_url(PERIOD, 12)
+
+    assert url == "https://www.itu.int/md/T25-SG12/en"
 
 
 def test_study_group_page_url() -> None:

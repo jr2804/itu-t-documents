@@ -9,19 +9,16 @@ import httpx
 import pytest
 
 from itu_t_documents.api import ItuDocuments
+from itu_t_documents.auth.ties import TiesAuthenticator
 from itu_t_documents.config.settings import Settings
-from itu_t_documents.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.models.metadata import DocumentFile
+from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import detail, listing, meetings, questions
 from tests.fakes import FakeClient
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
-
-
-@pytest.fixture
-def api(tmp_path: Path, fake_client: FakeClient) -> ItuDocuments:
-    """Return an API backed by the recorded fixtures."""
-    return ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
 
 
 # ----------------------------------------------------------------------
@@ -66,7 +63,7 @@ def test_parse_detail_page_without_a_title() -> None:
 
 def test_parse_meeting_text_of_a_cross_month_range() -> None:
     """A meeting that spans two months is parsed."""
-    parsed = meetings._parse_meeting_text("Geneva, 28 November - 6 December 2025")  # noqa: SLF001
+    parsed = meetings._parse_meeting_text("Geneva, 28 November - 6 December 2025")
     assert parsed is not None
     place, start, end = parsed
 
@@ -77,7 +74,7 @@ def test_parse_meeting_text_of_a_cross_month_range() -> None:
 
 def test_parse_meeting_text_of_an_unparsable_value() -> None:
     """A meeting link without a readable date is ignored."""
-    assert meetings._parse_meeting_text("somewhere else") is None  # noqa: SLF001
+    assert meetings._parse_meeting_text("somewhere else") is None
 
 
 def test_parse_meeting_index_of_a_page_without_meetings() -> None:
@@ -166,8 +163,6 @@ def test_document_ref_of_a_temporary_document_without_a_meeting() -> None:
 
 def test_document_file_without_a_known_format() -> None:
     """A file with an unknown format code has no extension."""
-    from itu_t_documents.models.documents import DocumentFile
-
     rendition = DocumentFile(format_code="XYZ", language_code="Q", url="https://example.org")
 
     assert rendition.file_format is None
@@ -262,6 +257,12 @@ def test_download_of_an_unavailable_rendition(tmp_path: Path, fake_client: FakeC
         api.download(ref, DocFormat.PDF, DocLanguage.ENGLISH)
 
 
+@pytest.fixture
+def api(tmp_path: Path, fake_client: FakeClient) -> ItuDocuments:
+    """Return an API backed by the recorded fixtures."""
+    return ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
+
+
 def test_api_context_manager_closes_the_client(tmp_path: Path, fake_client: FakeClient) -> None:
     """The API closes the client it owns."""
     with ItuDocuments(Settings(cache_dir=tmp_path)) as owned:
@@ -277,8 +278,6 @@ def test_authenticate_uses_the_credentials(tmp_path: Path) -> None:
     """A login is performed when credentials are configured."""
     Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
     client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200)), follow_redirects=True)
-
-    from itu_t_documents.auth.ties import TiesAuthenticator
 
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
     assert authenticator.is_authenticated is False

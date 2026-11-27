@@ -36,7 +36,7 @@ mise all        # test + lint + format in one pass
 - **`src/itu_t_documents/auth/`** — the TIES handshake
 - **`src/itu_t_documents/storage/`** — the SQLite metadata store and the file cache
 - **`src/itu_t_documents/cli/`** — Cyclopts CLI
-- **`src/itu_t_documents/mcp_server.py`** — the FastMCP server
+- **`src/itu_t_documents/mcp/`** — the FastMCP server, one module per group of tools
 - **`tests/`** — pytest suite (100% coverage gate), `tests/fixtures/` holds the recorded pages
 - **`docs/`** — Zensical / MkDocs Material documentation
 - **`.config/mise/`** — task runner config (`config.toml` + `conf.d/` fragments)
