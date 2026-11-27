@@ -1,7 +1,18 @@
-
 [tasks.docs]
 description = "Build documentation"
-# --link-mode=copy: zensical's file watcher panics under uv's symlink link
-# mode (UV_LINK_MODE=symlink); copy links keep the build deterministic.
-run = ["uv run --link-mode=copy zensical build"]
-
+# The documentation builder is a tool, not a dependency of the package, so it
+# runs outside the project environment. "--python" pins the interpreter and
+# the four packages are the builder and the plugins it needs: mkdocstrings
+# renders the API reference, markdown-exec executes the examples and
+# markdown-callouts provides the callout extension.
+#
+# The builder does not import the package: mkdocstrings reads the source
+# statically, so the runtime dependencies of the package are not needed here.
+run = """
+uvx --python 3.13 \
+  --with zensical==0.1.3 \
+  --with 'mkdocstrings[python]>=0.29' \
+  --with 'markdown-exec>=1.8' \
+  --with 'markdown-callouts>=0.4' \
+  zensical build
+"""

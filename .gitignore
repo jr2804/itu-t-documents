@@ -73,6 +73,8 @@ CLAUDE.md
 !/.agents/*.md
 !/.agents/history/
 !/.agents/history/**
+!/.agents/tools/
+!/.agents/tools/**
 # Implementation plans — mutable working artifacts, never committed
 /.agents/plans/
 
@@ -85,3 +87,5 @@ mise.local.toml
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+
+.cache/

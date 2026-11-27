@@ -62,13 +62,11 @@ jobs:
 
       # The free-threaded build uses the "abi3t" ABI, the classic "abi3"
       # wheels are not compatible with it. The optional "secretspec" extra
-      # and zensical only ship "abi3" wheels, so the free-threaded job
-      # installs the runtime dependencies and the test tools alone.
+      # only ships "abi3" wheels, so the free-threaded job installs the
+      # runtime dependencies and the test tools without it.
       - name: Install the project (free-threaded)
         if: matrix.python-version == '3.14t'
-        run: |
-          uv sync --no-group dev
-          uv pip install pytest pytest-cov
+        run: uv sync --all-groups
 
       - name: Test
         env:

@@ -24,6 +24,7 @@ mise all        # test + lint + format in one pass
 | `AGENTS.md` | Root rail — rules + `.agents/` index |
 | `.agents/POLICIES.md` | Boundaries, priorities, verification |
 | `.agents/FILES.md` | Source-of-truth locations for this package |
+| `.agents/TOOLS.md` | Installed CLIs, MCP servers, skills, and mise tasks |
 | `pyproject.toml` | Dependencies, pytest config, build backend |
 | `.copier-answers.yml` | Template answers (regenerated on `copier update`) |
 
@@ -55,12 +56,8 @@ mise all        # test + lint + format in one pass
 
 ## Available tools
 
-If MCP dev-features are enabled (`include_mcp_tasks`), the following may be
-available after running `mise run add-mcp-servers <agent>` and `mise run
-add-skills`:
-
-- **repowise** — architecture overview, risk, health scores, change-risk
-- **codegraph** — symbol search, call graphs, dependency maps
-- **grepai** — semantic code search by meaning, not text
-- **bd / beads** — distributed issue tracker (if `tracking` skill category enabled)
-- Various slop/dead-code detectors (see `.config/mise/conf.d/skills.toml`)
+The inventory of CLIs, MCP servers, skills, and tasks lives in
+`.agents/TOOLS.md`. The optional MCP dev-features and the skill set are not
+installed by default — `mise run add-mcp-servers <agent>` and `mise run
+add-skills` install what `.config/mise/data/dev-features.csv` and
+`.config/mise/data/skills.csv` enable.

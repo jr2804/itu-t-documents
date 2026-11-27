@@ -31,6 +31,7 @@ How to keep `.agents/` files current.
 | `ONBOARDING.md` | Project structure, tooling, or entry points change                    |
 | `POLICIES.md`  | Boundaries, priorities, or verification change                         |
 | `FILES.md`     | Path constants, config keys, or naming conventions change              |
+| `TOOLS.md`     | Tools, MCP servers, skills, or mise tasks are added or removed         |
 | `HISTORY.md`   | Notable decision made or resolved                                       |
 | `MAINTENANCE.md` | Maintenance procedures, triggers, or principles change               |
 | `plans/`       | New feature implementation starts                                       |

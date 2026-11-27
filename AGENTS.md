@@ -83,6 +83,7 @@ change. Summary:
 | `ONBOARDING.md`  | New session (first time)    | Project orientation, entry points               |
 | `POLICIES.md`    | Always                      | Boundaries, priorities, verification, checklist |
 | `FILES.md`       | Touching files or config    | Path constants, source-of-truth locations       |
+| `TOOLS.md`       | Using tools, MCP, or skills | Tool inventory and the task list                |
 | `HISTORY.md`     | Background (past decisions) | Recorded decisions with git refs                |
 | `MAINTENANCE.md` | Changing `.agents/`         | How to keep DOX files current                   |
 | `plans/`         | Working on a feature        | Implementation plans (gitignored)               |
@@ -143,7 +144,7 @@ Top-level boundaries in this project:
 - `docs/` (documentation)
 - `.github/` (the CI and the release workflow)
 - `.config/mise/` (task/tooling configuration)
-- `.config/mise/conf.d/` (dev-feature MCP and skills task fragments)
+- `.config/mise/conf.d/` (the task fragments: docs, lint, format, quality, release, MCP, skills)
 
 ## ⛔ No Patching
 

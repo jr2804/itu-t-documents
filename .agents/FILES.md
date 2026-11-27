@@ -20,13 +20,14 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Linter/formatter       | `ruff.toml`                                                     | Ruff rule selection, line length                |
 | Type checker           | `ty.toml`                                                       | ty strictness                                   |
 | Markdown linter        | `.config/rumdl.toml`                                            | `line-length`, `flavor`, disabled rules         |
-| Tool guidance          | `TOOLS.md`                                                      | Preferred diff tool for supported files         |
-| mise tasks             | `.config/mise/config.toml` + `.config/mise/conf.d/*.toml`       | `[tasks.dev]`, `[tasks.test]`, ...              |
+| Tool guidance          | `.agents/TOOLS.md`                                              | Tool inventory, MCP servers, skills, mise tasks |
+| mise tasks             | `.config/mise/config.toml` + `.config/mise/conf.d/*.toml`       | `[tasks.dev]`, `[tasks.test]`, `[tasks.docs]`, ... |
 | Copier answers         | `.copier-answers.yml`                                           | Template version + answers (regenerated)        |
 | Pre-commit config      | `.pre-commit-config.yaml`                                       | Hook list                                       |
 | MCP server config      | `.config/mise/conf.d/mcp.toml`                                  | `[tasks.add-mcp-servers]`, tool list            |
 | Skills install task    | `.config/mise/conf.d/skills.toml`                               | `[tasks.add-skills]`, skill list                |
 | Release tasks          | `.config/mise/conf.d/release.toml`                              | `[tasks.version]`, `[tasks.build]`, `[tasks.release]` |
+| Documentation build     | `.config/mise/conf.d/docs.toml`                                 | `[tasks.docs]`, the builder and its plugins     |
 | CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
 | Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |
 | Domain model           | `src/itu_doc_downloader/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |

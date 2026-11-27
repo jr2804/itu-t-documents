@@ -278,8 +278,13 @@ study groups are there?"* and *"Which working group deals with speech?"*.
 mise test        # pytest with the 100% coverage gate
 mise lint        # ruff + ty + codespell
 mise format      # ruff format + isort
+mise docs        # build the documentation
 mise all         # test + lint + format in one pass
 ```
+
+The documentation builder is a tool, not a dependency of the package: `mise
+docs` runs it through `uvx` with a pinned interpreter, outside the project
+environment.
 
 The version of the package is a CalVer version — `YYYY.MINOR.PATCH`, e.g.
 `2026.1.0` — and it is derived from the git tag, never written into
