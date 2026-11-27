@@ -21,8 +21,8 @@ It is a Python library, a command line tool and an MCP server for AI agents.
 | [The Python API](python-api.md) | embedding the package in your own tool |
 | [The MCP server](mcp.md) | letting an AI agent answer the questions of a user |
 
-All three read the same local caches, so a document that was fetched once is
-available to all of them — and to all of them without a login again.
+All three read the same local caches, so a document that was downloaded once
+is available to all of them without another login.
 
 ## A first look
 
@@ -37,11 +37,12 @@ itu-t-documents sync --study-group 12 --meeting 260609
 itu-t-documents documents --study-group 12 --question 5
 
 # The document itself
-itu-t-documents download --document T25-SG12-C-0192 --format PDF
+itu-t-documents download --document T25-SG12-C-0192 --format MSW
 ```
 
 The metadata is public; only the download needs a
-[TIES account](getting-started.md#the-ties-credentials).
+[TIES account](getting-started.md#the-ties-credentials) — or a copy of the
+file that is already in the cache.
 
 ## What it knows
 
@@ -52,20 +53,18 @@ The metadata is public; only the download needs a
   rapporteurs. The structure changes from period to period, so it is read
   from the ITU-T and never hard coded; see
   [the catalogue](catalogue.md).
-- **The access level of every document.** Contributions and reports need a
-  TIES account, temporary documents need a membership of the study group, and
-  collective letters are public.
+- **The access level of every document.** Contributions and reports are
+  TIES documents, temporary documents are internal to a study group, and
+  collective letters sit on a public path. A download still needs a TIES
+  account unless the file is already in the cache, because the package
+  authenticates before it asks the DMS for the file.
 
 ## The caches
 
 Everything the package has seen stays on disk, so a second run needs no
-network and no account:
-
-| Path | Content |
-|------|---------|
-| `~/.cache/itu-t-documents/metadata.db` | The SQLite metadata store |
-| `~/.cache/itu-t-documents/http-cache.sqlite` | The raw HTTP responses |
-| `~/.cache/itu-t-documents/files/` | The downloaded documents |
+network and no account. The metadata store, the HTTP cache and the downloaded
+files live in `~/.cache/itu-t-documents`; [Getting started](getting-started.md#the-caches)
+lists the files and shows how they fit together.
 
 ## The documentation
 

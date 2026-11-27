@@ -9,9 +9,9 @@ ITU-T user with the data of the ITU-T at hand.
 itu-t-documents mcp
 ```
 
-The server speaks the Model Context Protocol over stdio. It starts instantly,
-opens no port and holds no state of its own — everything it knows is in the
-local database of the package.
+The server speaks the Model Context Protocol over stdio. It opens no port and
+keeps no state between calls: every tool opens the package, answers from the
+caches or the ITU-T, and closes it again.
 
 ## Registering the server
 
@@ -51,14 +51,21 @@ that runs in your shell finds them on its own.
 | `documents_for_question` | `question`*, `study_group`, `meeting`, `doc_type`, `study_period` | *"Show me all TDs of Q5/12 at meeting XYZ"* |
 | `contributions_by_source` | `source`*, `study_group`, `study_period` | *"Which contributions were made by company XYZ in study group 12?"* |
 | `top_sources` | `study_group`, `last_meetings`, `study_period`, `limit` | *"Which source submitted the most documents (TD + C) to the last three meetings?"* |
-| `search_documents` | `study_group`, `doc_type`, `meeting`, `question`, `source`, `study_period`, `limit` | *"Show me the contributions of Huawei in 2025"* |
-| `download_document` | `document_id`*, `file_format`, `language`, `output_path` | *"Download T25-SG12-C-0192 as PDF"* |
+| `search_documents` | `study_group`, `doc_type`, `meeting`, `question`, `source`, `study_period`, `limit` | *"Show me the contributions of Huawei in SG12"* |
+| `download_document` | `document_id`*, `file_format`, `language`, `output_path` | *"Download T25-SG12-R-0001 as Word"* |
 | `list_periods` | — | *"Which study periods are there?"* |
 | `list_study_groups` | `study_period` | *"Which study groups does the ITU-T have?"* |
 | `list_structure` | `study_group`, `study_period` | *"Which working groups does SG13 have?"* |
 | `search_structure` | `text`*, `study_period` | *"Which working group deals with speech?"* |
 
-A parameter marked with an asterisk is required.
+A parameter marked with an asterisk is required. Every tool that takes them
+defaults to study group `12` and the current study period; `search_documents` returns at most 50
+documents, and `top_sources` looks at the last 3 meetings and returns 10
+sources. `documents_for_question`, `contributions_by_source` and
+`search_documents` synchronise the documents of the meetings of the study
+period first — only the named meeting where there is one — and then search
+the metadata store, in every stored study period until `study_period` names
+one.
 
 ## The three questions the tools exist for
 
@@ -73,9 +80,9 @@ A parameter marked with an asterisk is required.
 }
 ```
 
-The tool answers from the local database. When the meeting was never
-synchronised, the tool synchronises it first — that is the difference to a
-tool that only reads what happens to be there.
+The tool synchronises the named meeting before it queries the database — or
+every meeting of the study group when none is named. That is the difference to
+a tool that only reads what happens to be there.
 
 ### *"Which contributions were made by company XYZ in study group 12?"*
 
@@ -87,7 +94,9 @@ tool that only reads what happens to be there.
 ```
 
 The match is partial and case insensitive, so `TU Berlin` also finds
-`Technische Universität Berlin (TU Berlin) (Germany)`.
+`Technische Universität Berlin (TU Berlin) (Germany)`. The tool synchronises
+every meeting of the study group before it searches, so the first call can
+take a while.
 
 ### *"Which source submitted the most documents (TD + C) to the last three meetings?"*
 
@@ -131,4 +140,4 @@ writes to the local cache.
 
 The server uses the same caches as the command line, in
 `~/.cache/itu-t-documents`. An agent that asks the same question twice
-answers the second time from the database, without touching the network.
+answers the second time from the local cache, without touching the network.

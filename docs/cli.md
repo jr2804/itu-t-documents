@@ -4,21 +4,36 @@ title: The command line
 
 Every command of the package is available as `itu-t-documents <command>`.
 Run `itu-t-documents --help` for the list and
-`itu-t-documents <command> --help` for the details of one command.
+`itu-t-documents <command> --help` for the details of one command. Without a
+command the tool prints a two-line reminder; `itu-t-documents default` prints
+the same text, `itu-t-documents --version` prints the installed version, and
+`--install-completion` installs shell completion for the commands.
 
 ## The options
 
-Most commands take the same options:
+Most commands take the study group and the study period. The filters of
+`documents` apply to the local database, not to the network:
 
-| Option | Meaning | Default |
-|--------|---------|---------|
-| `--study-group`, `-g` | The study group, e.g. `12` | `12` |
-| `--study-period`, `-p` | The study period, e.g. `2025-2028` or `2025` | `2025-2028` |
-| `--meeting`, `-m` | A meeting, given by its DMS code, e.g. `270119` | every meeting |
-| `--type` | The document type: `TD`, `C`, `COL` or `R` | every type |
-| `--question`, `-q` | A question number, e.g. `5` for `Q5/12` | every question |
-| `--source`, `-s` | A submitting organisation; the match is partial | every source |
-| `--limit`, `-l` | The maximum number of results | no limit |
+| Option | Commands | Meaning | Default |
+|--------|----------|---------|---------|
+| `--study-group`, `-g` | most | The study group, e.g. `12` | `12` |
+| `--study-period`, `-p` | most | The study period, e.g. `2025-2028` or `2025` | the current period; `documents`: every period |
+| `--meeting`, `-m` | `sync`, `documents` | The DMS code of a meeting, e.g. `270119` | `sync`: every meeting; `documents`: no filter |
+| `--type` | `sync`, `documents` | `TD`, `C`, `COL` or `R` | `sync`: `C` and `TD`; `documents`: every type |
+| `--question`, `-q` | `documents` | A question number, e.g. `5` for `Q5/12` | every question |
+| `--source`, `-s` | `documents` | A submitting organisation; the match is partial | every source |
+| `--limit`, `-l` | `documents` | The maximum number of results | no limit |
+
+### What needs the network
+
+| Command | Answers from | Account |
+|---------|--------------|---------|
+| `periods`, `study-groups`, `structure`, `search`, `questions`, `meetings` | The ITU-T pages, through the HTTP cache | none |
+| `sync` | The ITU-T listings, into the metadata store | none |
+| `documents` | The metadata store only | none |
+| `download` | The file cache, then the ITU-T | TIES, unless the file is cached |
+| `auth` | The TIES login | TIES |
+| `mcp` | Every source above, per tool | TIES only for `download_document` |
 
 The options can also be set in the environment, which is handy when you work
 on one study group all the time:
@@ -27,7 +42,7 @@ on one study group all the time:
 export ITU_T_DOCUMENTS_STUDY_GROUP=13
 export ITU_T_DOCUMENTS_STUDY_PERIOD=2025-2028
 export ITU_T_DOCUMENTS_MEETING=270119
-export ITU_T_DOCUMENTS_OUTPUT_FILE=~/Documents/itu
+export ITU_T_DOCUMENTS_OUTPUT_FILE=~/Documents/itu-contribution.pdf
 ```
 
 ## The structure of the ITU-T
@@ -68,7 +83,13 @@ SG02   SG02 (2022-2024)
 SG03   SG03 (2022-2024)
 SG05   SG05 (2022-2024)
 SG09   SG09 (2022-2024)
-...
+SG11   SG11 (2022-2024)
+SG12   SG12 (2022-2024)
+SG13   SG13 (2022-2024)
+SG15   SG15 (2022-2024)
+SG16   SG16 (2022-2024)
+SG17   SG17 (2022-2024)
+SG20   SG20 (2022-2024)
 ```
 
 ### `structure`
@@ -80,15 +101,34 @@ groups of a study group.
 itu-t-documents structure --study-group 12
 ```
 
-```text
-PLEN         plenary
+<pre><code>PLEN         plenary
 WP1/12       Terminals and multimedia subjective assessment
 WP2/12       Objective models and tools for multimedia quality
 WP3/12       Multimedia QoS and QoE
-Q1/12        SG12 work programme and quality of service/quality of experience
-Q5/12        Telephonometric methodologies for handset and headset terminals
+Q1/12        SG12 work programme and quality of service/quality of experience (QoS/QoE) coordination in ITU-T Continuation of Q1/12
+Q2/12        Definitions, guides and frameworks related to quality of service/quality of experience (QoS/QoE) Continuation of Q2/12
+Q4/12        Objective methods for speech and audio evaluation in vehicles Continuation of Q4/12
+Q5/12        Telephonometric methodologies for handset and headset terminals Continuation of Q5/12
+Q6/12        Analysis methods for speech and audio using complex measurement signals Continuation of Q6/12
+Q7/12        Methodologies, tools and test plans for the subjective assessment of speech, audio and audiovisual quality interactions Continuation of Q7/12
+Q10/12       Conferencing and telemeeting assessment Continuation of Q10/12
+Q9/12        Perceptual-based objective methods and corresponding evaluation guidelines for voice and audio quality measurements in telecommunication services Continuation of Q9/12
+Q14/12       Development of models and tools for multimedia quality assessment of packet-based video services Continuation of Q14/12
+Q15/12       Parametric and E-model-based planning, prediction and monitoring of conversational speech and audio-visual quality Continuation of Q15/12
+Q19/12       Objective and subjective methods for evaluating perceptual audiovisual quality in multimedia and television services Continuation of Q19/12
+Q12/12       Operational aspects of telecommunication network service quality and end-to-end performance considerations Continuation of Q12/12
+Q13/12       Quality of experience (QoE), quality of service (QoS) and performance requirements and assessment methods for multimedia applications Continuation of Q13/12
+Q17/12       Performance of packet-based networks and other networking technologies Continuation of Q17/12
+Q20/12       Perceptual and field assessment principles for quality of service (QoS) and quality of experience (QoE) of digital financial services (DFS) Continuation of Q20/12
 SG12RG-AFR   ITU-T SG12 Regional Group for Africa
-```
+SG12RG-AMR   ITU-T SG12 Regional Group for the Americas
+SG12RG-AP    ITU-T SG12 Regional Group for Asia and the Pacific
+IRG-AVQA     ITU Intersector Rapporteur Group Audiovisual Quality Assessment
+QSDG         Quality of Service Development Group
+</code></pre>
+
+The order is the order of the catalogue, not numeric order: `Q10/12` comes
+before `Q9/12`, and the regional groups follow the questions.
 
 ### `search`
 
@@ -98,11 +138,15 @@ Search the working groups, the questions and the other groups of a period.
 itu-t-documents search --search speech
 ```
 
-```text
-question         Q15/12         Parametric and E-model-based planning, prediction and monitoring ...
-question         Q4/12          Objective methods for speech and audio evaluation in vehicles ...
-question         Q6/12          Analysis methods for speech and audio using complex measurement signals ...
-```
+<pre><code>question         Q15/12         Parametric and E-model-based planning, prediction and monitoring of conversational speech and audio-visual quality Continuation of Q15/12
+question         Q4/12          Objective methods for speech and audio evaluation in vehicles Continuation of Q4/12
+question         Q6/12          Analysis methods for speech and audio using complex measurement signals Continuation of Q6/12
+question         Q7/12          Methodologies, tools and test plans for the subjective assessment of speech, audio and audiovisual quality interactions Continuation of Q7/12
+</code></pre>
+
+The match is a case-insensitive substring of the code or the title, and the
+result is sorted by kind and then by code — which is why `Q15/12` comes before
+`Q4/12`.
 
 ## The documents
 
@@ -115,9 +159,12 @@ itu-t-documents meetings --study-group 12
 ```
 
 ```text
-270119  Geneva     2027-01-19 2027-01-27
-261015  E-Meeting  2026-10-15 2026-10-23
-260609  Geneva     2026-06-09 2026-06-17
+270119  Geneva, 19 January - 27 January 2027
+261015  E-Meeting, 15 October 2026
+260609  Geneva, 09 June - 17 June 2026
+250909  Geneva, 09 September - 18 September 2025
+250325  E-Meeting, 25 March 2025
+250114  Geneva, 14 January - 23 January 2025
 ```
 
 ### `questions`
@@ -145,14 +192,16 @@ Without `--meeting` every meeting of the study group is synchronised, which
 takes a while — a meeting of a busy study group holds several hundred
 documents.
 
-`--type` narrows the run to one document type:
+Without `--type`, `sync` reads contributions (`C`) and temporary documents
+(`TD`), the two types a meeting is made of:
 
 ```bash
 itu-t-documents sync --study-group 13 --meeting 250303 --type TD
 ```
 
 The temporary documents of a meeting are read per sub-type, because the
-aggregate listing of the ITU-T only previews five documents per sub-type.
+[aggregate listing of the ITU-T](reference/itu-dms.md#the-aggregate-listing-of-the-temporary-documents)
+only previews five documents per sub-type.
 
 ### `documents`
 
@@ -160,17 +209,25 @@ Search the documents that were stored. It never touches the network — it
 answers from the local database.
 
 ```bash
-itu-t-documents documents --study-group 12 --question 5
 itu-t-documents documents --study-group 12 --source "TU Berlin"
-itu-t-documents documents --study-group 12 --type C --limit 20
 ```
 
 ```text
-T25-SG12-260609-TD-GEN-0467   TD   Q4,5,6,7,10 Executive Summary of the Working Party 1/12 Meeting  Chair WP1/12
+T25-SG12-C-0192                  C    Q7          Proposal for a machine-learning speech dataset for subjectiv   Technische Universität Berlin (TU Berlin
+T25-SG12-C-0189                  C    Q9          Draft Recommendation P.SAMD                                    Technische Universität Berlin (TU Berlin
+T25-SG12-C-0174                  C    Q7          Crowdsourced speech data in objective quality prediction and   Technische Universität Berlin (TU Berlin
+T25-SG12-C-0158                  C    Q9          Robustness of Speech Quality Models to Pause Manipulation: P   Technische Universität Berlin (TU Berlin
+T25-SG12-C-0126                  C    Q7          Proposal for an update of ITU-T Rec. P.85                      Technische Universität Berlin (TU Berlin
+T25-SG12-C-0125                  C    Q7,15,12    Text quality assessment and prediction File replaced to upda   Technische Universität Berlin (TU Berlin
 ```
 
 The columns are the identifier, the type, the questions, the title and the
-sources.
+sources. The title is cut at 60 characters and the source at 40, which is why
+the last column ends in `(TU Berlin` — the cut is the command's, not a typo.
+
+`--question`, `--type`, `--meeting` and `--limit` narrow the same query.
+Without a filter the command prints every stored document, newest number
+first.
 
 ### `download`
 
@@ -178,14 +235,13 @@ Download a document. This needs TIES credentials, unless the document was
 downloaded before.
 
 ```bash
-itu-t-documents download --document T25-SG12-C-0192 --format PDF
-itu-t-documents download --document T25-SG12-261015-TD-GEN-0520 --format MSW --language E
-itu-t-documents download --document T25-SG12-C-0192 --format PDF --output-file ~/contribution.pdf
+itu-t-documents download T25-SG12-R-0001 --format MSW
+itu-t-documents download --document T25-SG12-C-0192 --format MSW --output-file ~/contribution.docx
 ```
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `--document` | The DMS identifier | required |
+| `DOCUMENT`, `--document` | The DMS identifier, as the only positional argument or as an option | required |
 | `--format` | `PDF`, `MSW` (Word), `ZIP`, `HTM` | `PDF` |
 | `--language` | `E`, `F`, `S`, `A`, `C`, `R` | `E` |
 | `--output-file`, `-o` | A path to write to | the cache |
@@ -193,6 +249,15 @@ itu-t-documents download --document T25-SG12-C-0192 --format PDF --output-file ~
 Without `--output-file` the document is written into the file cache. The
 package picks the rendition that matches the format and the language, and it
 prefers the original over a revision.
+
+Not every document is published in every rendition. `T25-SG12-C-0192` has no
+PDF, for example — it is `MSW-E` only. When the requested rendition does not
+exist the command names it instead of writing an empty file:
+
+```text
+T25-SG12-C-0192 is not available as PDF-E.
+Run `itu-t-documents documents` to see the documents that are known.
+```
 
 ## The accounts and the server
 

@@ -5,7 +5,7 @@ title: The catalogue of the ITU-T
 The ITU-T is an organisation with a structure: study periods, study groups,
 working groups and questions. The structure changes — a study group that
 existed in one study period may be gone in the next, and the questions under
-study are replaced every year.
+study are replaced with every study period.
 
 So the package does not know the structure. It reads it from the ITU-T, and
 it refuses an entity that does not exist instead of returning something
@@ -13,9 +13,9 @@ empty.
 
 ## The study periods
 
-The ITU-T publishes a fixed list of study periods, each of them four years
-long. The package knows them, so a period that does not exist cannot be
-built:
+The ITU-T publishes a fixed list of study periods, most of them four years
+long — 2022-2024 is the exception, at three years. The package knows the
+list, so a period that does not exist cannot be built:
 
 ```python
 from itu_t_documents import StudyPeriod
@@ -36,9 +36,8 @@ StudyPeriod.all()               # every period the ITU-T knows
 | 2025-2028 | `T25` | 18 |
 | 2029-2032 | `T29` | 19 |
 
-The period that was to start in 2021 was renamed to 2022-2024, because the
-extra year was used for the session that had been postponed. That is why
-2021 starts no period.
+There is no period starting in 2021: the list jumps from 2017-2020 straight
+to 2022-2024.
 
 The net4 index is the number the web applications of the ITU-T use for the
 period.
@@ -68,8 +67,8 @@ They really do change:
 | 2022-2024 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
 | 2025-2028 | 02, 03, 05, 11, 12, 13, 15, 17, 20, 21 |
 
-SG9 and SG16 existed in 2022-2024 and were replaced by SG21 in 2025-2028. A
-hard coded list would be wrong for one of the two.
+SG9 and SG16 are in the 2022-2024 list but not in 2025-2028, and SG21 appears
+only in 2025-2028. A hard coded list would be wrong for one of the two.
 
 Asking for a study group that the period does not have is an error, and the
 message names the ones that exist:
@@ -87,29 +86,36 @@ UnknownEntityError: 2025-2028 has no study group SG09; its study groups are SG02
 The structure page of a study group lists its plenary, its working groups, its
 questions under study and its other groups:
 
-```python
-structure = catalogue.structure(12, period)
+<figure markdown="span">
+  <img src="assets/figures/catalogue-structure-light.svg#only-light" alt="A study period holds a study group; the study group lists a plenary, working groups, questions and other groups; the working groups and the plenary handle the questions." width="100%">
+  <img src="assets/figures/catalogue-structure-dark.svg#only-dark" alt="A study period holds a study group; the study group lists a plenary, working groups, questions and other groups; the working groups and the plenary handle the questions." width="100%">
+  <figcaption>A study group contains its plenary, its working groups, its questions and its other groups. Each question follows the working group — or the plenary — that handles it.</figcaption>
+</figure>
 
-structure.plenary.code              # "PLEN"
-[group.code for group in structure.working_groups]   # ["WP1/12", "WP2/12", "WP3/12"]
-[question.code for question in structure.questions]   # ["Q1/12", "Q2/12", …]
-[(group.code, group.kind) for group in structure.other_groups]
+```python
+with ItuCatalogue() as catalogue:
+    period = StudyPeriod.from_year(2025)
+    structure = catalogue.structure(12, period)
+
+    structure.plenary.code              # "PLEN"
+    [group.code for group in structure.working_groups]   # ["WP1/12", "WP2/12", "WP3/12"]
+    [question.code for question in structure.questions]   # ["Q1/12", "Q2/12", …]
+    [(group.code, group.kind) for group in structure.other_groups]
 ```
 
 ```text
 [('SG12RG-AFR', 'regional'), ('SG12RG-AMR', 'regional'), ('SG12RG-AP', 'regional'), ('IRG-AVQA', 'rapporteur'), ('QSDG', 'study')]
 ```
 
-| Code | Kind |
-|------|------|
-| `PLEN` | the plenary |
-| `WP1/12` | a working group |
-| `Q5/12` | a question under study |
-| `SG12RG-AFR` | a regional group |
-| `FG-AINN` | a focus group |
-| `IRG-AVQA` | an intersector rapporteur group |
-| `QSDG` | a quality study group |
-| `JCA-IMT2020/IMT2030` | a joint coordination activity |
+| Code | What it is |
+|------|------------|
+| `PLEN` | The plenary of the study group |
+| `WP1/12` | A working group |
+| `Q5/12` | A question under study |
+| `SG12RG-AFR` | Any other group — a regional group, a focus group, an intersector rapporteur group, a quality study group or a joint coordination activity |
+
+The kind of an other group is one of `regional`, `focus`, `rapporteur`,
+`coordination` or `study`.
 
 The questions know the working group that handles them, because a question
 follows its working group on the page:
@@ -136,17 +142,21 @@ The catalogue searches the working groups, the questions and the other groups
 of a period:
 
 ```python
-for entry in catalogue.search("speech", period):
-    print(entry.kind, entry.code, entry.title)
+with ItuCatalogue() as catalogue:
+    for entry in catalogue.search("speech", StudyPeriod.from_year(2025)):
+        print(entry.kind, entry.code, entry.title)
 ```
 
 ```text
-question Q15/12 Parametric and E-model-based planning, prediction and monitoring …
-question Q4/12  Objective methods for speech and audio evaluation in vehicles …
+question Q15/12 Parametric and E-model-based planning, prediction and monitoring of conversational speech and audio-visual quality Continuation of Q15/12
+question Q4/12 Objective methods for speech and audio evaluation in vehicles Continuation of Q4/12
+question Q6/12 Analysis methods for speech and audio using complex measurement signals Continuation of Q6/12
+question Q7/12 Methodologies, tools and test plans for the subjective assessment of speech, audio and audiovisual quality interactions Continuation of Q7/12
 ```
 
 The search covers the code and the title of every group of every study group
-of the period.
+of the period, and the result is sorted by kind and then by code — so
+`Q15/12` comes before `Q4/12`.
 
 ## On the command line
 

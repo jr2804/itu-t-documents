@@ -14,7 +14,7 @@ increasing number:
 
 ```text
 T25-SG12-C-0192               contribution
-T25-SG12-261015-TD-GEN-0520   temporary document
+T25-SG12-260609-TD-GEN-0467   temporary document
 T25-SG12-COL-0001             collective letter
 T25-SG12-R-0001               report
 ```
@@ -26,7 +26,7 @@ T25-SG12-R-0001               report
 | `261015` | Meeting, the start date as `YYMMDD` | 15 October 2026 |
 | `TD` | Document type | see below |
 | `GEN` | Sub-type of a temporary document | general |
-| `0520` | Number of the document, zero padded to four digits | `520` |
+| `0467` | Number of the document, zero padded to four digits | `467` |
 
 The document types are `C` (contribution), `TD` (temporary document), `COL`
 (collective letter) and `R` (report).
@@ -61,7 +61,7 @@ meeting of a contribution is only known from the listing it appears in.
 | Document listing of a meeting | `/md/meetingdoc.asp?lang=en&parent=T25-SG12-261015-TD` |
 | Document listing of a sub-type | `/md/meetingdoc.asp?lang=en&parent=T25-SG12-261015-TD-GEN` |
 | Document listing of a study period | `/md/meetingdoc.asp?lang=en&parent=T25-SG12-COL` |
-| Detail page of a document | `/md/meetingdoc.asp?lang=en&parent=T25-SG12-261015-TD-GEN-0520` |
+| Detail page of a document | `/md/meetingdoc.asp?lang=en&parent=T25-SG12-260609-TD-GEN-0467` |
 | Summary page of a meeting | `/md/T25-SG12-261015/sum/en` |
 | Questions under study | `/net4/ITU-T/lists/loqr.aspx?Group=12&Period=18` |
 | Structure of a study group | `/net4/ITU-T/lists/sgstructure.aspx?Group=12&Period=18` |
@@ -73,43 +73,21 @@ The `meetingdoc.asp` addresses redirect to the canonical `/md/{parent}/en`.
 The `Period` parameter of the `net4` applications is an index of the ITU-T
 study periods: `13` is `2005-2008`, `14` is `2009-2012`, `15` is `2013-2016`,
 `16` is `2017-2020`, `17` is `2022-2024`, `18` is `2025-2028` and `19` is
-`2029-2032`. A period spans four years; the period that was to start in 2021
-was renamed to `2022-2024`, because the extra year was used for the session
-that had been postponed.
+`2029-2032`. Most periods span four years; `2022-2024` spans three, and there
+is no index for a period starting in 2021.
 
 ## The structure of the study groups
 
-The study groups, the working groups and the questions under study change from
-study period to period, so they cannot be hard coded:
-
-| Period | Study groups |
-|--------|--------------|
-| 2013-2016 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
-| 2017-2020 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
-| 2022-2024 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
-| 2025-2028 | 02, 03, 05, 11, 12, 13, 15, 17, 20, 21 |
-
-SG9 and SG16 existed in 2022-2024 and were replaced by SG21 in 2025-2028. The
-list of a period is read from its index page, which links to the page of every
-study group.
+The list of a period is read from its index page, which links to the page of
+every study group. The study groups, the working groups and the questions
+under study change from period to period; [the catalogue](../catalogue.md#the-study-groups)
+shows the lists and why they are read rather than hard coded.
 
 The structure page of a study group lists its groups in rows of an acronym and
-a title:
-
-| Code | Kind |
-|------|------|
-| `PLEN` | the plenary |
-| `WP1/12` | a working group |
-| `Q5/12` | a question under study |
-| `SG12RG-AFR` | a regional group |
-| `FG-AINN` | a focus group |
-| `IRG-AVQA` | an intersector rapporteur group |
-| `QSDG` | a quality study group |
-| `JCA-IMT2020/IMT2030` | a joint coordination activity |
-
-A question follows the working group it belongs to, so the page also tells
-which working group handles which question. The questions of the plenary come
-before the first working group.
+a title. A question follows the working group it belongs to, so the page also
+tells which working group handles which question; the questions of the plenary
+come before the first working group. [The catalogue](../catalogue.md#the-structure-of-a-study-group)
+shows the kinds and the order of the rows.
 
 ### The aggregate listing of the temporary documents
 
@@ -121,8 +99,29 @@ listing holds 30 rows — five for each of the six sub-types `GEN`, `PLEN`,
 them, and the aggregate page links to it.
 
 The package therefore reads the aggregate listing, collects the sub-types it
-offers and reads every sub-type listing. A study group with a single sub-type
-is unaffected: its aggregate listing already holds every document.
+offers and reads every sub-type listing. A meeting with a single sub-type is
+unaffected: the aggregate listing offers that sub-type, and its listing is
+read in full like any other.
+
+<figure markdown="span">
+  <img src="../assets/figures/listing-counts-light.svg#only-light" alt="Bar chart of the six temporary-document sub-types of T25-SG13-250303: GEN 82, PLEN 71, WP1 118, WP2 63, WP3 86, WP4 129 documents, against a preview of five rows per sub-type." width="100%">
+  <img src="../assets/figures/listing-counts-dark.svg#only-dark" alt="Bar chart of the six temporary-document sub-types of T25-SG13-250303: GEN 82, PLEN 71, WP1 118, WP2 63, WP3 86, WP4 129 documents, against a preview of five rows per sub-type." width="100%">
+  <figcaption>The aggregate listing of T25-SG13-250303 shows 5 of the 82 GEN documents, 5 of the 71 PLEN documents and so on — 30 rows for 549 documents. Reading every sub-type listing is the only complete route.</figcaption>
+</figure>
+
+### The listing of a study period knows more than the meetings
+
+The meeting index of a study group does not list every meeting a document
+was posted to. The listing of the study period `T09-SG15` holds 2390
+contributions, the listings of its eight meetings hold 2379 of them together,
+so eleven contributions — nine posted on 5 May 2009, one on 6 May 2009 and one
+on 8 October 2010, before or between the listed meetings — appear in the
+listing of no meeting. For `T25-SG13` and `T17-SG15` the two routes agree: 972
+and 2858 contributions, each in the listing of a meeting.
+
+`sync` lists the meetings one by one, so it stores a contribution only when a
+meeting lists it. The listing of a whole study period is read by
+`fetch_documents` without a meeting, see [the Python API](../python-api.md).
 
 ## Downloads
 
@@ -137,6 +136,10 @@ document type:
 | Report | `/dms_ties/itu-t/md/{sp}/sg{sg}/r/{id}!!{format}-{lang}.{ext}` | TIES account |
 
 `{sg}` is the zero padded study group, so study group 5 becomes `sg05`.
+
+The public path is a property of the DMS, not a promise of the package. A
+download goes through the authenticated client, so a collective letter still
+needs TIES credentials unless its rendition is already in the file cache.
 
 `{sp}` is the two-digit start year of the study period, `{format}` the format
 code (`MSW` for Word, `PDF`, `ZIP`, `HTM`) and `{lang}` the language code
@@ -175,7 +178,8 @@ no identifier.
 
 The protected documents are behind the F5 BIG-IP access policy at
 `auth.itu.int`, which delegates to the SAML identity provider at
-`login.itu.int`. A complete login has six steps:
+`login.itu.int`. A complete download has six steps, but the handshake itself
+is the four posts in the middle:
 
 1. **Request a protected document.** The access policy answers with a redirect
    to `auth.itu.int/F5Networks-SSO-Req?SSO_ORIG_URI=…`, which serves a page
@@ -194,6 +198,12 @@ The protected documents are behind the F5 BIG-IP access policy at
    `www.itu.int` and redirects to the requested document.
 6. **Fetch the requested document.** The session cookie authorises every
    further request under `/dms_ties` and `/dms_inf`.
+
+<figure class="figure-compact" markdown="span">
+  <img src="../assets/figures/ties-login-light.svg#only-light" alt="Sequence diagram with four participants: itu-t-documents, www.itu.int, auth.itu.int and login.itu.int. The protected document redirects to the access policy, the browser posts the SAMLRequest, the credentials, the dummy value and the SAMLResponse, and the session cookie is set on www.itu.int before the file is fetched." width="100%">
+  <img src="../assets/figures/ties-login-dark.svg#only-dark" alt="Sequence diagram with four participants: itu-t-documents, www.itu.int, auth.itu.int and login.itu.int. The protected document redirects to the access policy, the browser posts the SAMLRequest, the credentials, the dummy value and the SAMLResponse, and the session cookie is set on www.itu.int before the file is fetched." width="100%">
+  <figcaption>The four posts of the SAML handshake sit between the request for a protected document and the fetch of the file. The session cookie is set on <code>www.itu.int</code> when the assertion consumer service redirects back.</figcaption>
+</figure>
 
 Two things are worth knowing:
 
@@ -257,19 +267,25 @@ The package therefore resolves the manifest itself, in this order:
 A manifest that cannot be read — a missing file, a directory — yields no
 credentials instead of an error, so the other sources keep working.
 
-## Page size
+## Page size and pagination
 
 The document listings are paginated. The number of documents per page is kept
-in the cookie `ITUDMS_PageSize`, which the web interface accepts between 10
-and 900. The package sets it to 900, which keeps a whole listing of a single
-sub-type on one page. The cookie is a correctness requirement and not a
-tuning knob: without it the listing of the contributions of
-`T25-SG05-250603` holds 50 of 396 rows.
+in the cookie `ITUDMS_PageSize`; the page size control of the web interface
+offers 10 to 900. The package sets it to 900. The cookie is a correctness
+requirement and not a tuning knob: without it the listing of the
+contributions of `T25-SG05-250603` holds 50 of 396 rows.
+
+A listing with more than 900 documents spans several pages. The
+contributions of `T25-SG13` are 972, those of `T25-SG15` 1211 and those of
+`T17-SG15` 2858, so the listing of a study period does not fit on one page.
+Every page but the last one links to the next one (`Next`), and the package
+follows that link. The listing of a single meeting stays below 900 documents —
+the largest has 452 — so a meeting is always read from one page.
 
 The listing pages report their size (`Results: 82`), so the package compares
-the reported number with the number of documents it parsed and refuses an
-incomplete listing with `IncompleteListingError` instead of storing a part of
-it silently.
+the reported number with the number of documents it parsed from every page
+and refuses an incomplete listing with `IncompleteListingError` instead of
+storing a part of it silently.
 
 The aggregate listing of the temporary documents of a meeting is the one
 exception — it previews five documents per sub-type whatever the page size is

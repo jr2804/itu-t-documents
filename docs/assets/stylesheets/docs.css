@@ -1,0 +1,32 @@
+/* Figures generated from the sources in assets/figures/. */
+
+/* Zensical hides the light variant in the slate scheme; hide the dark
+   variant in the default scheme so a pair shows exactly one figure. */
+[data-md-color-scheme="default"] img[src$="#only-dark"],
+[data-md-color-scheme="slate"] img[src$="#only-light"] {
+  display: none;
+}
+
+figure {
+  margin: 1.5rem 0;
+}
+
+figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  opacity: 0.72;
+}
+
+/* A tall sequence diagram reads better in a narrow column. */
+.figure-compact,
+.figure-compact img {
+  max-width: 28rem;
+  margin-inline: auto;
+}

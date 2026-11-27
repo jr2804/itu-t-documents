@@ -98,9 +98,12 @@ itu-t-documents auth
 TIES login succeeded.
 ```
 
-The login is a SAML handshake against `auth.itu.int` and `login.itu.int`. It
-happens once per session and the session cookie lives in the HTTP client, so
-every later request reuses it.
+The login is a four-post SAML handshake against `auth.itu.int` and
+`login.itu.int`; a complete download adds the request for the document before
+it and the fetch of the file after it. The handshake happens once per session
+and the session cookie lives in the HTTP client, so every later request reuses
+it. [The reference of the DMS](reference/itu-dms.md#authentication) shows the
+whole chain.
 
 ### Credentials from secretspec
 
@@ -148,8 +151,8 @@ and the ITU-T blames invalid credentials for it — which is not what happened:
 
 ```text
 $ itu-t-documents download --document T25-SG13-C-0001 --format MSW
-T25-SG13-C-0001 is not accessible with these credentials; the membership of
-the TIES account does not cover SG13.
+T25-SG13-C-0001 is not accessible with these credentials; the membership of the TIES account does not cover SG13.
+The membership of a TIES account covers only the study groups it belongs to.
 ```
 
 ## Your first steps
@@ -161,9 +164,12 @@ itu-t-documents meetings --study-group 12
 ```
 
 ```text
-270119  Geneva     2027-01-19 2027-01-27
-261015  E-Meeting  2026-10-15 2026-10-23
-260609  Geneva     2026-06-09 2026-06-17
+270119  Geneva, 19 January - 27 January 2027
+261015  E-Meeting, 15 October 2026
+260609  Geneva, 09 June - 17 June 2026
+250909  Geneva, 09 September - 18 September 2025
+250325  E-Meeting, 25 March 2025
+250114  Geneva, 14 January - 23 January 2025
 ```
 
 Fetch the documents of one of them into the local database:
@@ -182,27 +188,35 @@ Search what was stored:
 ```bash
 itu-t-documents documents --study-group 12 --question 5
 itu-t-documents documents --study-group 12 --source "TU Berlin"
-itu-t-documents documents --study-group 13 --type TD --limit 10
+itu-t-documents documents --study-group 12 --type TD --limit 10
 ```
 
 Download a document:
 
 ```bash
-itu-t-documents download --document T25-SG12-C-0192 --format PDF
+itu-t-documents download --document T25-SG12-R-0001 --format MSW
 ```
 
 ```text
-/home/you/.cache/itu-t-documents/files/T25-SG12-C-0192/PDF-E.pdf (161047 bytes)
+/home/you/.cache/itu-t-documents/files/T25-SG12-R-0001/MSW-E.docx (161047 bytes)
 ```
 
 The formats are `PDF`, `MSW` (Word), `ZIP` and `HTM`, the languages are `E`
 (English), `F` (French), `S` (Spanish), `A` (Arabic), `C` (Chinese) and `R`
-(Russian).
+(Russian). Not every document is published in every rendition:
+`T25-SG12-C-0192`, for example, is available as `MSW-E` only. The command
+names the rendition it could not find rather than writing an empty file.
 
 ## The caches
 
 Everything the package has seen stays on disk, so a second run needs no
 network and no account:
+
+<figure markdown="span">
+  <img src="assets/figures/caches-light.svg#only-light" alt="The site feeds the HTTP cache, the HTTP cache feeds the metadata store, and a download goes from the site straight into the file cache. The command line, the Python API and the MCP server read the metadata store and the file cache." width="100%">
+  <img src="assets/figures/caches-dark.svg#only-dark" alt="The site feeds the HTTP cache, the HTTP cache feeds the metadata store, and a download goes from the site straight into the file cache. The command line, the Python API and the MCP server read the metadata store and the file cache." width="100%">
+  <figcaption>Metadata takes the long way through the HTTP cache and the metadata store; a file goes straight into the file cache. All three interfaces read the same two stores.</figcaption>
+</figure>
 
 | Path | Content |
 |------|---------|
@@ -213,7 +227,7 @@ network and no account:
 The cache directory is set with `ITU_CACHE_DIR` or the `general.cache_dir`
 key of the configuration file.
 
-The raw HTTP cache follows the rules of the RFC 9111: it honours the caching
+The raw HTTP cache follows the rules of RFC 9111: it honours the caching
 headers of the ITU-T, so a page is fetched again when the site says it
 changed. The metadata store and the file cache never expire — a document that
 was downloaded once is served from the disk.
@@ -232,9 +246,11 @@ password — the ITU-T locks an account after repeated failed attempts.
 The account is valid but its membership does not cover the study group of the
 document. Nothing is wrong with the package.
 
-**"The listing holds 3 of 85 documents"**
-The ITU-T truncated a listing. The package refuses an incomplete listing
-rather than storing a part of it silently; see
+**"the listing holds 900 of 972 documents"**
+The package read every page of a listing and still holds fewer documents than
+the listing reports: the ITU-T site changed or a row could not be read. The
+package refuses an incomplete listing rather than storing a part of it
+silently; see
 [The ITU-T Document Management System](reference/itu-dms.md).
 
 **A document is missing from a listing**

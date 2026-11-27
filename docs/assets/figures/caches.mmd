@@ -1,0 +1,6 @@
+flowchart LR
+    Site["www.itu.int<br/>listings · details · structure"] -->|GET| Http["HTTP cache<br/>http-cache.sqlite"]
+    Http -->|parse| Store["Metadata store<br/>metadata.db"]
+    Store -->|query| Clients["CLI · API · MCP"]
+    Site -->|download| Files["File cache<br/>files/"]
+    Files -->|serve| Clients

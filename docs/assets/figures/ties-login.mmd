@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant P as itu-t-documents
+    participant W as www.itu.int
+    participant A as auth.itu.int
+    participant L as login.itu.int
+    P->>W: GET a protected document
+    W-->>P: 302 to F5Networks-SSO-Req
+    P->>A: GET the SSO request
+    A-->>P: page with the SAMLRequest
+    Note over P,A: the four posts of the handshake
+    P->>L: POST the SAMLRequest
+    L-->>P: logon page
+    P->>L: POST user name and password
+    L-->>P: page that submits itself with a dummy value
+    P->>L: POST the dummy value back
+    L-->>P: page with the SAMLResponse
+    P->>A: POST the SAMLResponse to the ACS
+    A-->>P: 302 to www.itu.int/F5Networks-SSO-Resp
+    P->>W: GET F5Networks-SSO-Resp
+    W-->>P: sets the session cookie, redirects
+    P->>W: GET the document

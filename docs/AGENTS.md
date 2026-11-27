@@ -29,6 +29,10 @@ written by hand.
   site. It is a record of measurements, not a description of wishes.
 - `release.md`, `contributing.md` — the development pages.
 - `credits.md`, `license.md`, `code_of_conduct.md` — the boilerplate pages.
+- `assets/figures/` — the sources (`.mmd`, `.py`) and the rendered
+  `-light.svg` / `-dark.svg` pairs of the figures.
+- `assets/stylesheets/docs.css` — the small stylesheet for figures and
+  captions; it is registered in `zensical.toml`.
 - The navigation lives in `zensical.toml`, not in the pages.
 
 ## Local Contracts
@@ -58,6 +62,14 @@ written by hand.
 - A change of the package that the guide describes — a new command, a new
   setting, a new error — is documented in the same change.
 - Do not repeat what another page says. Link to it.
+- A figure is generated from its source in `assets/figures/`, never edited in
+  the SVG. Mermaid sources render with
+  `.agents/skills/mermaid-diagrams/scripts/render.mjs`; the catalogue figure
+  and the quantitative figures are Python scripts with explicit coordinates
+  and the scientific-figures conventions. Embed the light
+  and dark pair with `#only-light` and `#only-dark` inside
+  `<figure markdown="span">`, and give every image an alt text and the figure
+  a caption that states its claim.
 - The reference of the DMS is the record of what the ITU-T actually answers.
   When a measurement contradicts it, the measurement wins and the page is
   corrected.
