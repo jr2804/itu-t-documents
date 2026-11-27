@@ -3,25 +3,25 @@
 A query reads the metadata store only. It is one responsibility of
 :class:`ItuDocuments`, separate from the synchronisation that writes the
 store and from the download of a file.
+
+The class implements :class:`~itu_t_documents.interfaces.DocumentHost`, the
+contract of the API, so it can be mixed into :class:`ItuDocuments` without
+importing it.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from itu_t_documents.interfaces import DocumentHost
 from itu_t_documents.models.enums import DocType
 from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.storage.queries import DocumentRecord, SourceCount, find_documents, top_sources
 
-if TYPE_CHECKING:
-    from itu_t_documents.api import ItuDocuments
 
-
-class QueryOperations:
+class QueryOperations(DocumentHost):
     """The stored-document queries mixed into :class:`ItuDocuments`."""
 
     def find_documents(
-        self: ItuDocuments,
+        self,
         *,
         study_group: int | None = None,
         study_period: str | None = None,
@@ -51,7 +51,7 @@ class QueryOperations:
         )
 
     def top_sources(
-        self: ItuDocuments,
+        self,
         study_group: int,
         meetings: tuple[str, ...] | None = None,
         doc_types: tuple[DocType, ...] = (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT),
@@ -73,7 +73,7 @@ class QueryOperations:
         return top_sources(self.store, study_group, meetings, doc_types, limit)
 
     def documents_for_question(
-        self: ItuDocuments,
+        self,
         study_group: int,
         question: int,
         meeting: str | None = None,
@@ -94,7 +94,7 @@ class QueryOperations:
             study_period=study_period,
         )
 
-    def contributions_by_source(self: ItuDocuments, study_group: int, source: str, study_period: str | None = None) -> list[DocumentRecord]:
+    def contributions_by_source(self, study_group: int, source: str, study_period: str | None = None) -> list[DocumentRecord]:
         """List the contributions submitted by an organisation.
 
         Reads the metadata store only. ``source`` is matched case
@@ -103,7 +103,7 @@ class QueryOperations:
         """
         return self.find_documents(study_group=study_group, doc_type=DocType.CONTRIBUTION, source=source, study_period=study_period)
 
-    def _recent_meetings(self: ItuDocuments, study_group: int, study_period: StudyPeriod, count: int) -> tuple[str, ...]:
+    def _recent_meetings(self, study_group: int, study_period: StudyPeriod, count: int) -> tuple[str, ...]:
         """Return the codes of the most recent stored meetings of a study group."""
         codes = {
             record.meeting_code for record in self.find_documents(study_group=study_group, study_period=study_period.label) if record.meeting_code is not None

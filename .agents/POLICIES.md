@@ -29,13 +29,14 @@ that order, when two of them disagree.
 Universal defaults. Project-specific standards live in child AGENTS.md.
 
 - **SRP** — one reason to change per module/function.
-- **DRY** — check before adding. Extract on third occurrence (Rule of Three).
+- **DRY** — check before adding. Extract on third occurrence (Rule of Three);
+  prefer duplication over wrong premature abstraction.
 - **Redundant code** — remove dead branches, unreachable conditions, unused
   params/imports before finishing.
-- **Duplication vs. abstraction** — prefer duplication over wrong premature
-  abstraction.
 - **Module size** — no super-modules. Below 200 lines (`wc -l`), about 150 as
   the target; split by responsibility when a module outgrows them.
+- **No `TYPE_CHECKING`, no ignore comments** — break a circular import with a
+  protocol; fix a lint finding instead of silencing it.
 - No new code-quality tooling by default — opt in per project.
 
 ## Completion checklist

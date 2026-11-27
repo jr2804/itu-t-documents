@@ -27,9 +27,9 @@ method_type_order = ["instance", "class", "static"]
 [transforms]
 # Move imports nested inside function/class bodies to the top of the module.
 hoist_inline_imports = true
-# Keep the "if TYPE_CHECKING:" guards. The imports they hold are circular on
-# purpose: a mixin refers to the class it is mixed into.
-remove_type_checking = false
+# Remove the "if TYPE_CHECKING:" guards. The package has none: a circular
+# import is broken with a protocol in "src/itu_t_documents/interfaces.py".
+remove_type_checking = true
 
 [cli]
 # Exit non-zero when pyreorder run modifies files (pre-commit/CI friendly).

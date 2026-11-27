@@ -46,6 +46,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Document file cache    | `src/itu_t_documents/storage/files.py`                      | `FileCache`                                    |
 | URL builders           | `src/itu_t_documents/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
 | High level API         | `src/itu_t_documents/api.py`                                | `ItuDocuments`, `SyncReport`; `api_sync.py`, `api_queries.py` |
+| The contracts         | `src/itu_t_documents/interfaces.py`                        | `DocumentHost`, `CatalogueHost` — the protocols of the mixins |
 | MCP server             | `src/itu_t_documents/mcp/`                                  | `server.py` (`mcp`, the list of the tools), one module per group of tools |
 | Recorded ITU-T pages   | `tests/fixtures/`                                               | `*.html`, the input of the parser tests        |
 | Cache directory        | `~/.cache/itu-t-documents/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |

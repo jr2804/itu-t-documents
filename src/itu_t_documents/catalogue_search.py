@@ -3,18 +3,19 @@
 A search reads the structure of every study group and matches a text against
 the codes and titles it holds. It is one responsibility of
 :class:`ItuCatalogue`, separate from the lookups that name one entity.
+
+The class implements :class:`~itu_t_documents.interfaces.CatalogueHost`, the
+contract of the catalogue, so it can be mixed into :class:`ItuCatalogue`
+without importing it.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
+from itu_t_documents.interfaces import CatalogueHost
 from itu_t_documents.models.catalogue import StudyGroup
 from itu_t_documents.models.study_periods import StudyPeriod
-
-if TYPE_CHECKING:
-    from itu_t_documents.catalogue import ItuCatalogue
 
 
 @dataclass(frozen=True)
@@ -33,10 +34,10 @@ class CatalogueEntry:
         return f"{self.code} — {self.title}" if self.title else self.code
 
 
-class SearchOperations:
+class SearchOperations(CatalogueHost):
     """The search method mixed into :class:`ItuCatalogue`."""
 
-    def search(self: ItuCatalogue, text: str, period: StudyPeriod | None = None) -> list[CatalogueEntry]:
+    def search(self, text: str, period: StudyPeriod | None = None) -> list[CatalogueEntry]:
         """Search the catalogue for the entities that mention the given text.
 
         The study groups, the working groups, the questions under study and
@@ -59,7 +60,7 @@ class SearchOperations:
             entries.extend(self._search_study_group(study_group, wanted))
         return sorted(entries, key=lambda entry: (entry.kind, entry.code))
 
-    def _search_study_group(self: ItuCatalogue, study_group: StudyGroup, wanted: str) -> list[CatalogueEntry]:
+    def _search_study_group(self, study_group: StudyGroup, wanted: str) -> list[CatalogueEntry]:
         """Return the entries of a study group that mention the given text."""
         entries: list[CatalogueEntry] = []
         structure = self.structure(study_group.number, study_group.period)

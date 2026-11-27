@@ -3,20 +3,21 @@
 A synchronisation reads the ITU-T web site and writes the result to the
 metadata store. It is one responsibility of :class:`ItuDocuments`, separate
 from the lookups that read the store and from the download of a file.
+
+The class implements :class:`~itu_t_documents.interfaces.DocumentHost`, the
+contract of the API, so it can be mixed into :class:`ItuDocuments` without
+importing it.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
+from itu_t_documents.interfaces import DocumentHost
 from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocType
 from itu_t_documents.models.metadata import DocumentMetadata
 from itu_t_documents.models.study_periods import StudyPeriod
-
-if TYPE_CHECKING:
-    from itu_t_documents.api import ItuDocuments
 
 
 @dataclass(frozen=True)
@@ -32,11 +33,11 @@ class SyncReport:
         return sum(stored for _, stored in self.meetings) + self.period_only
 
 
-class SyncOperations:
+class SyncOperations(DocumentHost):
     """The synchronisation methods mixed into :class:`ItuDocuments`."""
 
     def sync_meeting(
-        self: ItuDocuments,
+        self,
         study_group: int,
         meeting: MeetingId,
         study_period: StudyPeriod,
@@ -60,7 +61,7 @@ class SyncOperations:
         return self.store.count_documents() - before
 
     def sync_period(
-        self: ItuDocuments,
+        self,
         study_group: int,
         study_period: StudyPeriod,
         doc_types: tuple[DocType, ...] = (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT),
@@ -91,7 +92,7 @@ class SyncOperations:
         return self.store.count_documents() - before
 
     def sync_study_group(
-        self: ItuDocuments,
+        self,
         study_group: int,
         study_period: StudyPeriod,
         doc_types: tuple[DocType, ...] = (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT),
@@ -115,7 +116,7 @@ class SyncOperations:
         period_only = self.sync_period(study_group, study_period, doc_types)
         return SyncReport(meetings=tuple(meetings), period_only=period_only)
 
-    def sync_questions(self: ItuDocuments, study_group: int, study_period: StudyPeriod) -> int:
+    def sync_questions(self, study_group: int, study_period: StudyPeriod) -> int:
         """Fetch and store the questions under study of a study group.
 
         Args:
@@ -130,7 +131,7 @@ class SyncOperations:
             self.store.store_question(question, study_period.label)
         return len(questions)
 
-    def sync_detail(self: ItuDocuments, ref: DocumentRef) -> DocumentMetadata:
+    def sync_detail(self, ref: DocumentRef) -> DocumentMetadata:
         """Fetch the renditions of a document and store them.
 
         Args:

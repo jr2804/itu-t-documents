@@ -120,6 +120,9 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   the period code of a document identifier is looked up in `STUDY_PERIODS`.
 - Scraped text is untrusted input: it reaches the domain model through the
   pydantic models in `models/`, never as plain dictionaries.
+- The parts of the package that are mixed into a class agree on the contracts
+  in `src/itu_t_documents/interfaces.py`. A circular import is broken there,
+  never with a guarded import — see `.agents/POLICIES.md`.
 - Anything already seen must be answerable without authentication: the metadata
   store and the file cache are the sources of truth for cached data.
 - A listing and a detail page tell different things about a document. The store
