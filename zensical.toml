@@ -1,16 +1,21 @@
 [project]
-site_name = "ITU-T Document Downloader"
+site_name = "ITU-T Documents"
 site_description = "Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP."
 site_author = "Jan.Reimes"
 # site_url and repo_url: set these once your repository is hosted
-# site_url = "https://example.com/itu-doc-downloader"
-# repo_url = "https://example.com/itu-doc-downloader"
+# site_url = "https://example.com/itu-t-documents"
+repo_url = "https://github.com/jr2804/itu-t-documents"
 copyright = "Copyright &copy; 2026 Jan.Reimes"
 nav = [
   { "Home" = [
     { "Overview" = "index.md" },
-    { "Credits" = "credits.md" },
-    { "License" = "license.md" },
+  ] },
+  { "Guide" = [
+    { "Getting started" = "getting-started.md" },
+    { "The command line" = "cli.md" },
+    { "The Python API" = "python-api.md" },
+    { "The MCP server" = "mcp.md" },
+    { "The catalogue of the ITU-T" = "catalogue.md" },
   ] },
   { "Reference" = [
     { "API reference" = "reference/api.md" },
@@ -20,6 +25,10 @@ nav = [
     { "Contributing" = "contributing.md" },
     { "Releasing" = "release.md" },
     { "Code of Conduct" = "code_of_conduct.md" },
+  ] },
+  { "About" = [
+    { "Credits" = "credits.md" },
+    { "License" = "license.md" },
   ] },
 ]
 
@@ -77,11 +86,11 @@ toggle.name = "Switch to system preference"
 # ----------------------------------------------------------------------------
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-# link = "https://example.com/itu-doc-downloader"
+link = "https://github.com/jr2804/itu-t-documents"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/python"
-link = "https://pypi.org/project/itu-doc-downloader/"
+link = "https://pypi.org/project/itu-t-documents/"
 
 [project.extra.analytics.feedback]
 title = "Was this page helpful?"

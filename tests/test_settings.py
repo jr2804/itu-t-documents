@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from itu_doc_downloader.config.secretspec_source import SECRETSPEC_MANIFEST_NAME
-from itu_doc_downloader.config.settings import (
+from itu_t_documents.config.secretspec_source import SECRETSPEC_MANIFEST_NAME
+from itu_t_documents.config.settings import (
     CONFIG_FILE_NAME,
     SecretspecManifestSource,
     Settings,
@@ -57,7 +57,7 @@ def test_configuration_file(monkeypatch, tmp_path: Path) -> None:
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: config_dir / CONFIG_FILE_NAME,
     )
 
@@ -81,7 +81,7 @@ def test_environment_overrides_the_configuration_file(monkeypatch, tmp_path: Pat
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: config_dir / CONFIG_FILE_NAME,
     )
 
@@ -106,7 +106,7 @@ def test_configuration_directory_can_be_moved(monkeypatch, tmp_path: Path) -> No
 def test_missing_configuration_file_is_ignored(monkeypatch, tmp_path: Path) -> None:
     """A missing configuration file is not an error."""
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: tmp_path / "absent.toml",
     )
 
@@ -140,7 +140,7 @@ def test_secretspec_manifest_from_the_configuration_file(monkeypatch, tmp_path: 
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: config_dir / CONFIG_FILE_NAME,
     )
 
@@ -158,7 +158,7 @@ def test_environment_manifest_wins_over_the_configuration_file(monkeypatch, tmp_
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: config_dir / CONFIG_FILE_NAME,
     )
     monkeypatch.setenv("ITU_SECRETSPEC_MANIFEST", str(tmp_path / "secretspec.toml"))
@@ -182,7 +182,7 @@ def test_manifest_in_the_configuration_directory_is_used(monkeypatch, tmp_path: 
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     manifest = config_dir / SECRETSPEC_MANIFEST_NAME
-    manifest.write_text('[project]\nname = "itu-doc-downloader"\n', encoding="utf-8")
+    manifest.write_text('[project]\nname = "itu-t-documents"\n', encoding="utf-8")
     monkeypatch.setenv("ITU_CONFIG_DIR", str(config_dir))
 
     settings = Settings()

@@ -9,9 +9,9 @@ Contributions are welcome! Here's how you can help.
 ### Development Setup
 
 ```bash
-# Clone the repository (replace <repo-url> with your fork)
-git clone <repo-url>.git
-cd itu-doc-downloader
+# Clone the repository (replace the URL with your fork)
+git clone https://github.com/jr2804/itu-t-documents.git
+cd itu-t-documents
 
 # Install the pinned tool versions (ruff, ty, rumdl, pyreorder, ...).
 # Node.js and Bun are expected on PATH; add them to mise.local.toml or run

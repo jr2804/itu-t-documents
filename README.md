@@ -1,4 +1,4 @@
-# ITU-T Document Downloader
+# ITU-T Documents
 
 > Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP.
 
@@ -43,13 +43,13 @@ database and downloads the documents on demand.
 mise dev
 
 # List the meetings of study group 12
-uv run itu-doc-downloader meetings --study-group 12
+uv run itu-t-documents meetings --study-group 12
 
 # Fetch the documents of a meeting into the local database
-uv run itu-doc-downloader sync --study-group 12 --meeting 260609
+uv run itu-t-documents sync --study-group 12 --meeting 260609
 
 # Search them
-uv run itu-doc-downloader documents --study-group 12 --question 5
+uv run itu-t-documents documents --study-group 12 --question 5
 ```
 
 ## TIES credentials
@@ -62,7 +62,7 @@ export ITU_TIES_USERNAME="you@example.org"
 export ITU_TIES_PASSWORD="secret"
 ```
 
-or from `~/.config/itu-doc-downloader/config.toml`:
+or from `~/.config/itu-t-documents/config.toml`:
 
 ```toml
 [credentials]
@@ -70,7 +70,7 @@ username = "you@example.org"
 password = "secret"
 
 [general]
-cache_dir = "~/.cache/itu-doc-downloader"
+cache_dir = "~/.cache/itu-t-documents"
 timeout = 30
 ```
 
@@ -88,7 +88,7 @@ with a page that blames invalid credentials, which is not what happened. The
 package reports that as a missing membership:
 
 ```text
-$ itu-doc-downloader download --document T25-SG13-C-0001 --format MSW
+$ itu-t-documents download --document T25-SG13-C-0001 --format MSW
 T25-SG13-C-0001 is not accessible with these credentials; the membership of
 the TIES account does not cover SG13.
 ```
@@ -96,7 +96,7 @@ the TIES account does not cover SG13.
 Check that the login works with:
 
 ```bash
-uv run itu-doc-downloader auth
+uv run itu-t-documents auth
 ```
 
 ### Credentials from secretspec
@@ -113,7 +113,7 @@ uv sync --extra secretspec
 ```toml
 # secretspec.toml
 [project]
-name = "itu-doc-downloader"
+name = "itu-t-documents"
 revision = "1.0"
 
 [providers]
@@ -130,7 +130,7 @@ manifest:
 ```bash
 secretspec set ITU_TIES_USERNAME
 secretspec set ITU_TIES_PASSWORD
-uv run itu-doc-downloader auth
+uv run itu-t-documents auth
 ```
 
 secretspec itself only ever looks for a file named `secretspec.toml` in the
@@ -138,13 +138,13 @@ current directory and its parents. To keep the manifest somewhere else, put it
 next to the configuration file — the package looks there as well:
 
 ```text
-~/.config/itu-doc-downloader/secretspec.toml
+~/.config/itu-t-documents/secretspec.toml
 ```
 
 or name it explicitly:
 
 ```bash
-export ITU_SECRETSPEC_MANIFEST="/srv/secrets/itu-doc-downloader.toml"
+export ITU_SECRETSPEC_MANIFEST="/srv/secrets/itu-t-documents.toml"
 ```
 
 The manifest is looked up in this order: `ITU_SECRETSPEC_MANIFEST`, the
@@ -183,7 +183,7 @@ in 2025-2028. They are therefore read from the ITU-T and never hard coded, and
 an entity that does not exist is refused instead of being returned empty.
 
 ```python
-from itu_doc_downloader import ItuCatalogue, StudyPeriod
+from itu_t_documents import ItuCatalogue, StudyPeriod
 
 with ItuCatalogue() as catalogue:
     period = StudyPeriod.from_year(2025)          # the period that starts in 2025
@@ -198,7 +198,7 @@ with ItuCatalogue() as catalogue:
 ## Python API
 
 ```python
-from itu_doc_downloader import DocType, ItuDocuments, StudyPeriod
+from itu_t_documents import DocType, ItuDocuments, StudyPeriod
 
 with ItuDocuments() as api:
     period = StudyPeriod.from_year(2025)
@@ -218,18 +218,18 @@ with ItuDocuments() as api:
 ## CLI
 
 ```text
-itu-doc-downloader auth                          # check the TIES credentials
-itu-doc-downloader periods                       # list the study periods
-itu-doc-downloader study-groups                  # list the study groups of a period
-itu-doc-downloader structure --study-group 12    # the groups and questions of a study group
-itu-doc-downloader search --search speech        # search the groups of the ITU-T
-itu-doc-downloader meetings                      # list the meetings of a study group
-itu-doc-downloader questions                     # list the questions under study
-itu-doc-downloader sync --meeting 260609         # fetch and store the documents
-itu-doc-downloader documents --question 5        # search the stored documents
-itu-doc-downloader documents --source "TU Berlin"
-itu-doc-downloader download --document T25-SG12-C-0192 --format PDF
-itu-doc-downloader mcp                           # run the MCP server over stdio
+itu-t-documents auth                          # check the TIES credentials
+itu-t-documents periods                       # list the study periods
+itu-t-documents study-groups                  # list the study groups of a period
+itu-t-documents structure --study-group 12    # the groups and questions of a study group
+itu-t-documents search --search speech        # search the groups of the ITU-T
+itu-t-documents meetings                      # list the meetings of a study group
+itu-t-documents questions                     # list the questions under study
+itu-t-documents sync --meeting 260609         # fetch and store the documents
+itu-t-documents documents --question 5        # search the stored documents
+itu-t-documents documents --source "TU Berlin"
+itu-t-documents download --document T25-SG12-C-0192 --format PDF
+itu-t-documents mcp                           # run the MCP server over stdio
 ```
 
 | Option | Description |
@@ -246,7 +246,7 @@ itu-doc-downloader mcp                           # run the MCP server over stdio
 ## MCP server
 
 ```bash
-uv run itu-doc-downloader mcp
+uv run itu-t-documents mcp
 ```
 
 The server offers the tools `list_meetings`, `list_questions`,
@@ -268,9 +268,9 @@ study groups are there?"* and *"Which working group deals with speech?"*.
 
 | Path | Content |
 |------|---------|
-| `~/.cache/itu-doc-downloader/metadata.db` | The SQLite metadata store |
-| `~/.cache/itu-doc-downloader/http-cache.sqlite` | The raw HTTP cache (hishel) |
-| `~/.cache/itu-doc-downloader/files/` | The downloaded documents |
+| `~/.cache/itu-t-documents/metadata.db` | The SQLite metadata store |
+| `~/.cache/itu-t-documents/http-cache.sqlite` | The raw HTTP cache (hishel) |
+| `~/.cache/itu-t-documents/files/` | The downloaded documents |
 
 ## Development
 

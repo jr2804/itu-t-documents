@@ -1,4 +1,4 @@
-"""Template validation tests for ITU-T Document Downloader."""
+"""Template validation tests for ITU-T Documents."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def test_pyproject_toml_structure() -> None:
 
     # Verify project name matches project slug (kebab-case)
     project_name = content["project"]["name"]
-    expected_name = "itu-doc-downloader"
+    expected_name = "itu-t-documents"
     if project_name != expected_name:
         msg = f"Project name should be '{expected_name}', got: {project_name}"
         raise AssertionError(msg)
@@ -64,7 +64,7 @@ def test_pytest_configuration() -> None:
     # pytest-cov only reads CLI flags, so they must live in pytest's own addopts.
     pytest_options = tool_section.get("pytest", {}).get("ini_options", {})
     addopts = pytest_options.get("addopts", "")
-    expected_slug = "itu_doc_downloader"
+    expected_slug = "itu_t_documents"
     if f"--cov={expected_slug}" not in addopts:
         msg = f"Coverage should be enabled for '{expected_slug}' via addopts, got: {addopts}"
         raise AssertionError(msg)

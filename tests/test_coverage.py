@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.http.client import ItuHttpClient
-from itu_doc_downloader.models.documents import DocumentFile, DocumentRef, MeetingId, StudyPeriod
-from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
-from itu_doc_downloader.scraping import detail, listing, questions
-from itu_doc_downloader.storage.files import FileCache
-from itu_doc_downloader.urls import detail_url_for
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.http.client import ItuHttpClient
+from itu_t_documents.models.documents import DocumentFile, DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.scraping import detail, listing, questions
+from itu_t_documents.storage.files import FileCache
+from itu_t_documents.urls import detail_url_for
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -147,7 +147,7 @@ def test_http_client_authenticates(tmp_path: Path) -> None:
 
 def test_mcp_list_questions_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     """The questions tool returns the questions of the study group."""
-    from itu_doc_downloader import mcp_server
+    from itu_t_documents import mcp_server
 
     class FakeApi:
         """A stand-in for the API."""
@@ -170,7 +170,7 @@ def test_mcp_list_questions_tool(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_mcp_download_document_tool(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The download tool returns the path of the downloaded document."""
-    from itu_doc_downloader import mcp_server
+    from itu_t_documents import mcp_server
 
     class FakeApi:
         """A stand-in for the API."""
@@ -197,7 +197,7 @@ def test_mcp_download_document_tool(monkeypatch: pytest.MonkeyPatch, tmp_path: P
 
 def test_mcp_main_runs_the_server(monkeypatch: pytest.MonkeyPatch) -> None:
     """The entry point of the MCP server starts the server."""
-    from itu_doc_downloader import mcp_server
+    from itu_t_documents import mcp_server
 
     started: list[bool] = []
     monkeypatch.setattr(mcp_server.mcp, "run", lambda *args, **kwargs: started.append(True))
@@ -209,12 +209,12 @@ def test_mcp_main_runs_the_server(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_cli_auth_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The auth command reports a successful login."""
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.cli import commands
 
     class FakeSettings:
         """Settings with credentials."""
 
-        config_file = Path("~/.config/itu-doc-downloader/config.toml")
+        config_file = Path("~/.config/itu-t-documents/config.toml")
 
         def has_credentials(self) -> bool:
             """Report that credentials are available."""
@@ -242,13 +242,13 @@ def test_cli_auth_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captur
 
 def test_cli_auth_command_reports_a_failure(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The auth command reports a failed login."""
-    from itu_doc_downloader.auth.ties import AuthenticationError
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.auth.ties import AuthenticationError
+    from itu_t_documents.cli import commands
 
     class FakeSettings:
         """Settings with credentials."""
 
-        config_file = Path("~/.config/itu-doc-downloader/config.toml")
+        config_file = Path("~/.config/itu-t-documents/config.toml")
 
         def has_credentials(self) -> bool:
             """Report that credentials are available."""
@@ -277,9 +277,9 @@ def test_cli_auth_command_reports_a_failure(monkeypatch: pytest.MonkeyPatch, cap
 
 def test_cli_questions_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The questions command lists the questions of a study group."""
-    from itu_doc_downloader.cli import commands
-    from itu_doc_downloader.models.enums import Role
-    from itu_doc_downloader.models.questions import Person, Question, WorkingGroup
+    from itu_t_documents.cli import commands
+    from itu_t_documents.models.enums import Role
+    from itu_t_documents.models.questions import Person, Question, WorkingGroup
 
     class FakeApi:
         """A stand-in for the API."""
@@ -316,8 +316,8 @@ def test_cli_questions_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.C
 
 def test_cli_documents_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The documents command prints the documents it found."""
-    from itu_doc_downloader.api import DocumentRecord
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.api import DocumentRecord
+    from itu_t_documents.cli import commands
 
     class FakeApi:
         """A stand-in for the API."""
@@ -356,7 +356,7 @@ def test_cli_documents_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.C
 
 def test_cli_download_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The download command writes the document and reports its size."""
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.cli import commands
 
     class FakeApi:
         """A stand-in for the API."""

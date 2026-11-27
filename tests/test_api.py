@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from itu_doc_downloader.api import IncompleteListingError, ItuDocuments
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.errors import AccessDeniedError
-from itu_doc_downloader.models.documents import DocumentRef, MeetingId, StudyPeriod
-from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.api import IncompleteListingError, ItuDocuments
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.errors import AccessDeniedError
+from itu_t_documents.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
 from tests.fakes import DOCUMENT_BYTES, FakeClient
 
 

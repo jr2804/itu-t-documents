@@ -10,12 +10,12 @@ from typing import Any
 import pytest
 from pydantic import SecretStr
 
-from itu_doc_downloader.config.secretspec_source import (
+from itu_t_documents.config.secretspec_source import (
     DEFAULT_SECRETSPEC_PROVIDER,
     SecretspecConfigSource,
     secretspec_credentials,
 )
-from itu_doc_downloader.config.settings import CONFIG_FILE_NAME, Settings
+from itu_t_documents.config.settings import CONFIG_FILE_NAME, Settings
 
 
 class _FakeSecretSpecError(Exception):
@@ -257,7 +257,7 @@ def test_settings_falls_back_to_secretspec(monkeypatch: pytest.MonkeyPatch, tmp_
     """Without environment or file credentials the secretspec provider applies."""
     monkeypatch.setenv("ITU_CACHE_DIR", str(tmp_path))
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: tmp_path / "absent.toml",
     )
     _install_fake_secretspec(
@@ -280,7 +280,7 @@ def test_environment_wins_over_secretspec(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setenv("ITU_TIES_USERNAME", "env@example.org")
     monkeypatch.setenv("ITU_TIES_PASSWORD", "env-secret")
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: tmp_path / "absent.toml",
     )
     _install_fake_secretspec(
@@ -306,7 +306,7 @@ def test_configuration_file_wins_over_secretspec(monkeypatch: pytest.MonkeyPatch
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "itu_doc_downloader.config.settings.default_config_file",
+        "itu_t_documents.config.settings.default_config_file",
         lambda: config_dir / CONFIG_FILE_NAME,
     )
     _install_fake_secretspec(

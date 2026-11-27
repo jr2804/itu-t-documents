@@ -9,13 +9,13 @@ from typing import Any
 
 import pytest
 
-from itu_doc_downloader import mcp_server
-from itu_doc_downloader.api import DocumentRecord, SourceCount
-from itu_doc_downloader.catalogue import CatalogueEntry
-from itu_doc_downloader.models.catalogue import StudyGroupStructure
-from itu_doc_downloader.models.documents import StudyGroup
-from itu_doc_downloader.models.enums import DocType
-from itu_doc_downloader.models.questions import Question, WorkingGroup
+from itu_t_documents import mcp_server
+from itu_t_documents.api import DocumentRecord, SourceCount
+from itu_t_documents.catalogue import CatalogueEntry
+from itu_t_documents.models.catalogue import StudyGroupStructure
+from itu_t_documents.models.documents import StudyGroup
+from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.questions import Question, WorkingGroup
 
 
 class FakeMeeting:

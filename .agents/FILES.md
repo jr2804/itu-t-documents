@@ -13,8 +13,8 @@ Kept compact — agents hallucinate less when they know where definitions live.
 
 | What                   | Where                                                           | Key names                                       |
 | ---------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
-| Package source root    | `src/itu_doc_downloader/`  | `__init__.py`, `__about__.py` (version)         |
-| CLI entry points       | `src/itu_doc_downloader/cli/`            | `app.py` (Cyclopts app), `args.py`, `commands.py` |
+| Package source root    | `src/itu_t_documents/`  | `__init__.py`, `__about__.py` (version)         |
+| CLI entry points       | `src/itu_t_documents/cli/`            | `app.py` (Cyclopts app), `args.py`, `commands.py` |
 | Test suite             | `tests/`                                                        | `test_*.py`, `conftest.py`                      |
 | Project metadata       | `pyproject.toml`                                                | `[project]`, `[tool.pytest.ini_options]`        |
 | Linter/formatter       | `ruff.toml`                                                     | Ruff rule selection, line length                |
@@ -28,31 +28,33 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Skills install task    | `.config/mise/conf.d/skills.toml`                               | `[tasks.add-skills]`, skill list                |
 | Release tasks          | `.config/mise/conf.d/release.toml`                              | `[tasks.version]`, `[tasks.build]`, `[tasks.release]` |
 | Documentation build     | `.config/mise/conf.d/docs.toml`                                 | `[tasks.docs]`, the builder and its plugins     |
+| The documentation site  | `docs/`                                                         | `index.md`, `getting-started.md`, `cli.md`, `python-api.md`, `mcp.md`, `catalogue.md` |
+| The site navigation     | `zensical.toml`                                                 | `[project] nav`                                 |
 | CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
 | Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |
-| Domain model           | `src/itu_doc_downloader/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |
-| Page parsers           | `src/itu_doc_downloader/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py` |
-| The catalogue          | `src/itu_doc_downloader/catalogue.py`                          | `ItuCatalogue`, `CatalogueEntry`               |
-| The errors             | `src/itu_doc_downloader/errors.py`                             | `ItuError`, `AccessDeniedError`, `UnknownEntityError` |
-| TIES handshake         | `src/itu_doc_downloader/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
-| HTTP access            | `src/itu_doc_downloader/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
-| Configuration           | `src/itu_doc_downloader/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |
-| secretspec credentials  | `src/itu_doc_downloader/config/secretspec_source.py`           | `secretspec_credentials`, `SecretspecConfigSource` |
-| Metadata store         | `src/itu_doc_downloader/storage/database.py`                   | `MetadataStore`, the SQLModel tables            |
-| Document file cache    | `src/itu_doc_downloader/storage/files.py`                      | `FileCache`                                    |
-| URL builders           | `src/itu_doc_downloader/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
-| High level API         | `src/itu_doc_downloader/api.py`                                | `ItuDocuments`, `DocumentRecord`, `SourceCount` |
-| MCP server             | `src/itu_doc_downloader/mcp_server.py`                         | `mcp`, the tool functions                       |
+| Domain model           | `src/itu_t_documents/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |
+| Page parsers           | `src/itu_t_documents/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py` |
+| The catalogue          | `src/itu_t_documents/catalogue.py`                          | `ItuCatalogue`, `CatalogueEntry`               |
+| The errors             | `src/itu_t_documents/errors.py`                             | `ItuError`, `AccessDeniedError`, `UnknownEntityError` |
+| TIES handshake         | `src/itu_t_documents/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
+| HTTP access            | `src/itu_t_documents/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
+| Configuration           | `src/itu_t_documents/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |
+| secretspec credentials  | `src/itu_t_documents/config/secretspec_source.py`           | `secretspec_credentials`, `SecretspecConfigSource` |
+| Metadata store         | `src/itu_t_documents/storage/database.py`                   | `MetadataStore`, the SQLModel tables            |
+| Document file cache    | `src/itu_t_documents/storage/files.py`                      | `FileCache`                                    |
+| URL builders           | `src/itu_t_documents/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
+| High level API         | `src/itu_t_documents/api.py`                                | `ItuDocuments`, `DocumentRecord`, `SourceCount` |
+| MCP server             | `src/itu_t_documents/mcp_server.py`                         | `mcp`, the tool functions                       |
 | Recorded ITU-T pages   | `tests/fixtures/`                                               | `*.html`, the input of the parser tests        |
-| Cache directory        | `~/.cache/itu-doc-downloader/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |
-| Configuration file     | `~/.config/itu-doc-downloader/config.toml`                     | `[credentials]`, `[general]`                   |
-| secretspec manifest    | `~/.config/itu-doc-downloader/secretspec.toml`                  | `ITU_SECRETSPEC_MANIFEST`, `general.secretspec_manifest` |
+| Cache directory        | `~/.cache/itu-t-documents/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |
+| Configuration file     | `~/.config/itu-t-documents/config.toml`                     | `[credentials]`, `[general]`                   |
+| secretspec manifest    | `~/.config/itu-t-documents/secretspec.toml`                  | `ITU_SECRETSPEC_MANIFEST`, `general.secretspec_manifest` |
 
 ## Naming conventions
 
 - **Repository name** (`project_slug`): kebab-case (`my-project`)
 - **Python package** (`package_slug`): snake_case (`my_project`)
-- **Layout**: `src/itu_doc_downloader/`
+- **Layout**: `src/itu_t_documents/`
 - **Test files**: `test_<module>.py`
 - **Template files** (in source template): `filename.ext.jinja` — the `.jinja`
   suffix is stripped on generation

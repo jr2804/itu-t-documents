@@ -8,11 +8,11 @@ from pathlib import Path
 import httpx
 import pytest
 
-from itu_doc_downloader.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, AuthenticationError
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.http.client import ItuHttpClient
-from itu_doc_downloader.models.documents import StudyPeriod
-from itu_doc_downloader.scraping import detail, listing, meetings
+from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, AuthenticationError
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.http.client import ItuHttpClient
+from itu_t_documents.models.documents import StudyPeriod
+from itu_t_documents.scraping import detail, listing, meetings
 from tests.fakes import FakeClient
 
 SAML_REQUEST_PAGE = f"""<html><body><form action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
@@ -82,7 +82,7 @@ def test_authenticator_reports_a_server_error() -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(failing), follow_redirects=True)
 
-    from itu_doc_downloader.auth.ties import TiesAuthenticator
+    from itu_t_documents.auth.ties import TiesAuthenticator
 
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
 
@@ -94,7 +94,7 @@ def test_authenticator_reports_a_server_error() -> None:
 
 def test_cli_mcp_command(monkeypatch: pytest.MonkeyPatch) -> None:
     """The mcp command starts the MCP server."""
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.cli import commands
 
     started: list[bool] = []
     monkeypatch.setattr(commands, "run_mcp", lambda: started.append(True))
@@ -108,7 +108,7 @@ def test_settings_source_reports_unset_fields() -> None:
     """The TOML source never sets a field on its own."""
     from pydantic.fields import FieldInfo
 
-    from itu_doc_downloader.config.settings import TomlConfigSource
+    from itu_t_documents.config.settings import TomlConfigSource
 
     source = TomlConfigSource(Settings, Path(__file__))
 
@@ -121,7 +121,7 @@ def test_settings_source_reports_unset_fields() -> None:
 
 def test_mcp_period_with_an_explicit_label() -> None:
     """The MCP tools accept an explicit study period."""
-    from itu_doc_downloader.mcp_server import _period
+    from itu_t_documents.mcp_server import _period
 
     assert _period("2017-2020").label == "2017-2020"
     assert _period(None).label == "2025-2028"
@@ -129,8 +129,8 @@ def test_mcp_period_with_an_explicit_label() -> None:
 
 def test_mcp_sync_skips_an_invalid_meeting_code(tmp_path: Path, fake_client: FakeClient) -> None:
     """A meeting code that cannot be read is skipped."""
-    from itu_doc_downloader import mcp_server
-    from itu_doc_downloader.api import ItuDocuments
+    from itu_t_documents import mcp_server
+    from itu_t_documents.api import ItuDocuments
 
     api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
 
@@ -213,7 +213,7 @@ def test_meeting_index_skips_an_unreadable_code() -> None:
 
 def test_store_rejects_a_row_that_was_not_persisted() -> None:
     """A row without a primary key is refused."""
-    from itu_doc_downloader.storage.database import _row_id
+    from itu_t_documents.storage.database import _row_id
 
     class Unpersisted:
         """A row that was never written."""
@@ -226,7 +226,7 @@ def test_store_rejects_a_row_that_was_not_persisted() -> None:
 
 def test_meeting_row_unique_key() -> None:
     """The key of a meeting is unique across the store."""
-    from itu_doc_downloader.storage.database import MeetingRow
+    from itu_t_documents.storage.database import MeetingRow
 
     meeting = MeetingRow(study_group_id=3, code="270119", start_date=date(2027, 1, 19))
 

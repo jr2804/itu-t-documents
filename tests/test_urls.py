@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from itu_doc_downloader.models.documents import MeetingId, StudyPeriod
-from itu_doc_downloader.models.enums import DocType
-from itu_doc_downloader.urls import (
+from itu_t_documents.models.documents import MeetingId, StudyPeriod
+from itu_t_documents.models.enums import DocType
+from itu_t_documents.urls import (
     PERIOD_INDICES,
     detail_url,
     listing_url,

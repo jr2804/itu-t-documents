@@ -7,23 +7,23 @@ from importlib.metadata import PackageNotFoundError
 
 import pytest
 
-import itu_doc_downloader
-from itu_doc_downloader import __about__
-from itu_doc_downloader.cli import app as cli_app
-from itu_doc_downloader.cli import commands
+import itu_t_documents
+from itu_t_documents import __about__
+from itu_t_documents.cli import app as cli_app
+from itu_t_documents.cli import commands
 
 
 def test_package_exposes_version() -> None:
     """Importing the package and its metadata module must work."""
-    assert itu_doc_downloader.__version__
-    assert __about__.__title__ == "itu_doc_downloader"
+    assert itu_t_documents.__version__
+    assert __about__.__title__ == "itu_t_documents"
 
 
 def test_package_exports_the_public_api() -> None:
     """The package exports the objects of the public API."""
-    assert itu_doc_downloader.ItuDocuments.__name__ == "ItuDocuments"
-    assert itu_doc_downloader.DocumentRef.__name__ == "DocumentRef"
-    assert itu_doc_downloader.DocType.CONTRIBUTION == "C"
+    assert itu_t_documents.ItuDocuments.__name__ == "ItuDocuments"
+    assert itu_t_documents.DocumentRef.__name__ == "DocumentRef"
+    assert itu_t_documents.DocType.CONTRIBUTION == "C"
 
 
 def test_cli_version_uses_metadata() -> None:
@@ -53,11 +53,11 @@ def test_cli_main_invokes_app(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_dunder_main_invokes_main(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`python -m itu_doc_downloader` runs the CLI entry point."""
+    """`python -m itu_t_documents` runs the CLI entry point."""
     invoked: list[bool] = []
     monkeypatch.setattr(cli_app, "main", lambda: invoked.append(True))
 
-    runpy.run_module("itu_doc_downloader", run_name="__main__")
+    runpy.run_module("itu_t_documents", run_name="__main__")
 
     assert invoked == [True]
 
@@ -73,4 +73,4 @@ def test_default_command(capsys: pytest.CaptureFixture[str]) -> None:
     """The default command prints the welcome message."""
     commands.default()
 
-    assert "itu-doc-downloader" in capsys.readouterr().out
+    assert "itu-t-documents" in capsys.readouterr().out

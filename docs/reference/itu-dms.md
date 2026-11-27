@@ -203,7 +203,7 @@ Two things are worth knowing:
   response. What the requested document answers afterwards — a file, a `404`,
   an error page — does not say anything about the login.
 
-The package implements this chain in `itu_doc_downloader.auth.ties`. The
+The package implements this chain in `itu_t_documents.auth.ties`. The
 session cookies live in the HTTP client, so one login serves every following
 request.
 
@@ -224,16 +224,16 @@ protected.
 
 ### Where the credentials come from
 
-`itu_doc_downloader.config.Settings` resolves the TIES credentials from the
+`itu_t_documents.config.Settings` resolves the TIES credentials from the
 highest priority source that provides them. The priority is per setting:
 
 1. the environment variables `ITU_TIES_USERNAME` and `ITU_TIES_PASSWORD`,
-2. the `[credentials]` table of `~/.config/itu-doc-downloader/config.toml`,
+2. the `[credentials]` table of `~/.config/itu-t-documents/config.toml`,
 3. a [secretspec](https://github.com/cachix/secretspec) provider, when the
    optional `secretspec` extra is installed and a `secretspec.toml` declares the
    two secrets under the provider alias `itu-ties`.
 
-The secretspec layer lives in `itu_doc_downloader.config.secretspec_source`. It
+The secretspec layer lives in `itu_t_documents.config.secretspec_source`. It
 contributes the two credentials only as a pair — when either value is missing it
 contributes nothing — and it is ignored entirely when the extra is not installed
 or the provider cannot be resolved. Installing the package without the extra

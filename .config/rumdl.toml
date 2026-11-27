@@ -6,7 +6,10 @@
 # Global configuration options
 [global]
 # List of rules to disable (uncomment and modify as needed)
-disable = ["MD033"]
+# MD033: the inline HTML of the README is deliberate.
+# MD046: the documentation uses the tabbed blocks of pymdownx, see the
+#        "pymdownx.tabbed" extension in zensical.toml.
+disable = ["MD033", "MD046"]
 
 # List of rules to enable exclusively (replaces defaults; only these rules will run)
 # enable = ["MD001", "MD003", "MD004"]

@@ -30,13 +30,13 @@ mise all        # test + lint + format in one pass
 
 ## Layout
 
-- **`src/itu_doc_downloader/`** — primary package source (src layout)
-- **`src/itu_doc_downloader/models/`** — the ITU-T domain model (identifiers, enums, questions)
-- **`src/itu_doc_downloader/scraping/`** — parsers of the ITU-T pages
-- **`src/itu_doc_downloader/auth/`** — the TIES handshake
-- **`src/itu_doc_downloader/storage/`** — the SQLite metadata store and the file cache
-- **`src/itu_doc_downloader/cli/`** — Cyclopts CLI
-- **`src/itu_doc_downloader/mcp_server.py`** — the FastMCP server
+- **`src/itu_t_documents/`** — primary package source (src layout)
+- **`src/itu_t_documents/models/`** — the ITU-T domain model (identifiers, enums, questions)
+- **`src/itu_t_documents/scraping/`** — parsers of the ITU-T pages
+- **`src/itu_t_documents/auth/`** — the TIES handshake
+- **`src/itu_t_documents/storage/`** — the SQLite metadata store and the file cache
+- **`src/itu_t_documents/cli/`** — Cyclopts CLI
+- **`src/itu_t_documents/mcp_server.py`** — the FastMCP server
 - **`tests/`** — pytest suite (100% coverage gate), `tests/fixtures/` holds the recorded pages
 - **`docs/`** — Zensical / MkDocs Material documentation
 - **`.config/mise/`** — task runner config (`config.toml` + `conf.d/` fragments)

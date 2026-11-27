@@ -6,9 +6,9 @@ from datetime import date
 
 import pytest
 
-from itu_doc_downloader.models.documents import DocumentFile, DocumentRef, MeetingId, StudyGroup, StudyPeriod
-from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType, Role
-from itu_doc_downloader.models.questions import Person, Question, WorkingGroup
+from itu_t_documents.models.documents import DocumentFile, DocumentRef, MeetingId, StudyGroup, StudyPeriod
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, Role
+from itu_t_documents.models.questions import Person, Question, WorkingGroup
 
 
 def test_study_period_from_label() -> None:

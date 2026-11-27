@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from itu_doc_downloader.errors import UnknownEntityError
-from itu_doc_downloader.models.catalogue import StructureGroup
-from itu_doc_downloader.models.documents import StudyGroup, StudyPeriod
-from itu_doc_downloader.scraping import catalogue
+from itu_t_documents.errors import UnknownEntityError
+from itu_t_documents.models.catalogue import StructureGroup
+from itu_t_documents.models.documents import StudyGroup, StudyPeriod
+from itu_t_documents.scraping import catalogue
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 OTHER_PERIOD = StudyPeriod(start_year=2022, end_year=2024)

@@ -86,4 +86,4 @@ docstring-code-format = true
 docstring-code-line-length = 160
 
 [lint.isort]
-known-first-party = ["itu_doc_downloader"]
+known-first-party = ["itu_t_documents"]

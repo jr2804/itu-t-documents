@@ -1,4 +1,4 @@
-"""Pytest configuration and fixtures for ITU-T Document Downloader."""
+"""Pytest configuration and fixtures for ITU-T Documents."""
 
 from __future__ import annotations
 

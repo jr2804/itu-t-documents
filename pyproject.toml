@@ -1,5 +1,5 @@
 [project]
-name = "itu-doc-downloader"
+name = "itu-t-documents"
 dynamic = ["version"]
 description = "Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP."
 readme = "README.md"
@@ -37,13 +37,13 @@ dev = [
 ]
 
 [project.scripts]
-itu-doc-downloader = "itu_doc_downloader.cli.app:main"
+itu-t-documents = "itu_t_documents.cli.app:main"
 
 [project.optional-dependencies]
 secretspec = ["secretspec>=0.21.1"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/itu_doc_downloader"]
+packages = ["src/itu_t_documents"]
 
 [build-system]
 # 0.8 is the first release that knows the "format-jinja" option, an older
@@ -78,10 +78,10 @@ format-jinja = '''
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 cache_dir = "tests/test-cache"
-addopts = "-v --tb=short --cov=itu_doc_downloader --cov-report=term-missing --cov-report=html --cov-report=xml"
+addopts = "-v --tb=short --cov=itu_t_documents --cov-report=term-missing --cov-report=html --cov-report=xml"
 
 [tool.coverage.run]
-source = ["itu_doc_downloader"]
+source = ["itu_t_documents"]
 
 [tool.coverage.report]
 fail_under = 100

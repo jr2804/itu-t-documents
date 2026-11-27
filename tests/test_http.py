@@ -7,9 +7,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from itu_doc_downloader.auth.ties import AuthenticationError
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.http.client import PAGE_SIZE, ItuHttpClient, cache_file, decode
+from itu_t_documents.auth.ties import AuthenticationError
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.http.client import PAGE_SIZE, ItuHttpClient, cache_file, decode
 
 
 def _client(tmp_path: Path, handler) -> ItuHttpClient:

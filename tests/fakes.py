@@ -8,7 +8,7 @@ from pathlib import Path
 
 import httpx
 
-from itu_doc_downloader.http.client import ItuClient
+from itu_t_documents.http.client import ItuClient
 
 #: The bytes a fake document download returns.
 DOCUMENT_BYTES = b"document-bytes"

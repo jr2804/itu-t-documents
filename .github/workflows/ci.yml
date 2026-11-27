@@ -73,7 +73,7 @@ jobs:
           # The free-threaded build enables the GIL by default. "0" keeps it
           # disabled, so the test suite really runs without the GIL.
           PYTHON_GIL: ${{ matrix.python-version == '3.14t' && '0' || '1' }}
-        run: uv run --no-sync pytest --cov=itu_doc_downloader
+        run: uv run --no-sync pytest --cov=itu_t_documents
 
   build:
     name: Build the sdist and the wheel

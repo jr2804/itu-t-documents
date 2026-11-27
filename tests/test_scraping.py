@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from itu_doc_downloader.models.documents import MeetingId, StudyPeriod
-from itu_doc_downloader.models.enums import DocType
-from itu_doc_downloader.scraping import detail, listing, meetings, questions
+from itu_t_documents.models.documents import MeetingId, StudyPeriod
+from itu_t_documents.models.enums import DocType
+from itu_t_documents.scraping import detail, listing, meetings, questions
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -105,7 +105,7 @@ def test_parse_subtypes_of_an_empty_page() -> None:
 
 def test_parse_page_of_broken_markup() -> None:
     """A page that holds no markup at all is reported as such."""
-    from itu_doc_downloader.scraping.pages import parse_page
+    from itu_t_documents.scraping.pages import parse_page
 
     assert parse_page("") is None
     assert parse_page("   ") is None

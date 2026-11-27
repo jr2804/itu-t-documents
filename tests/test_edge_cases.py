@@ -8,11 +8,11 @@ from pathlib import Path
 import httpx
 import pytest
 
-from itu_doc_downloader.api import ItuDocuments
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.models.documents import DocumentRef, MeetingId, StudyPeriod
-from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
-from itu_doc_downloader.scraping import detail, listing, meetings, questions
+from itu_t_documents.api import ItuDocuments
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+from itu_t_documents.scraping import detail, listing, meetings, questions
 from tests.fakes import FakeClient
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
@@ -166,7 +166,7 @@ def test_document_ref_of_a_temporary_document_without_a_meeting() -> None:
 
 def test_document_file_without_a_known_format() -> None:
     """A file with an unknown format code has no extension."""
-    from itu_doc_downloader.models.documents import DocumentFile
+    from itu_t_documents.models.documents import DocumentFile
 
     rendition = DocumentFile(format_code="XYZ", language_code="Q", url="https://example.org")
 
@@ -278,7 +278,7 @@ def test_authenticate_uses_the_credentials(tmp_path: Path) -> None:
     Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
     client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200)), follow_redirects=True)
 
-    from itu_doc_downloader.auth.ties import TiesAuthenticator
+    from itu_t_documents.auth.ties import TiesAuthenticator
 
     authenticator = TiesAuthenticator(client, "you@example.org", "secret")
     assert authenticator.is_authenticated is False

@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from itu_doc_downloader.catalogue import CatalogueEntry, ItuCatalogue
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.errors import UnknownEntityError
-from itu_doc_downloader.models.documents import StudyPeriod
+from itu_t_documents.catalogue import CatalogueEntry, ItuCatalogue
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.errors import UnknownEntityError
+from itu_t_documents.models.documents import StudyPeriod
 from tests.fakes import FakeClient
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)

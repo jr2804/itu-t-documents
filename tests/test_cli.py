@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from itu_doc_downloader.api import IncompleteListingError
-from itu_doc_downloader.catalogue import CatalogueEntry
-from itu_doc_downloader.cli import commands
-from itu_doc_downloader.errors import AccessDeniedError, UnknownEntityError
-from itu_doc_downloader.models.catalogue import StructureGroup, StudyGroupStructure
-from itu_doc_downloader.models.documents import MeetingId, StudyGroup, StudyPeriod
-from itu_doc_downloader.models.enums import DocType
-from itu_doc_downloader.models.questions import Question, WorkingGroup
+from itu_t_documents.api import IncompleteListingError
+from itu_t_documents.catalogue import CatalogueEntry
+from itu_t_documents.cli import commands
+from itu_t_documents.errors import AccessDeniedError, UnknownEntityError
+from itu_t_documents.models.catalogue import StructureGroup, StudyGroupStructure
+from itu_t_documents.models.documents import MeetingId, StudyGroup, StudyPeriod
+from itu_t_documents.models.enums import DocType
+from itu_t_documents.models.questions import Question, WorkingGroup
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -199,7 +199,7 @@ def test_auth_command_without_credentials(monkeypatch: pytest.MonkeyPatch, capsy
 class _SettingsWithoutCredentials:
     """Settings without any credentials."""
 
-    config_file = Path("~/.config/itu-doc-downloader/config.toml")
+    config_file = Path("~/.config/itu-t-documents/config.toml")
 
     def has_credentials(self) -> bool:
         """Report that no credentials are available."""
@@ -218,7 +218,7 @@ def test_download_command_with_an_unavailable_rendition(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """The download command reports a rendition the ITU-T does not offer."""
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.cli import commands
 
     class FakeApi:
         """A stand-in for the API."""
@@ -249,7 +249,7 @@ def test_download_command_with_a_document_the_account_may_not_see(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """The download command reports a document outside the membership."""
-    from itu_doc_downloader.cli import commands
+    from itu_t_documents.cli import commands
 
     class FakeApi:
         """A stand-in for the API."""

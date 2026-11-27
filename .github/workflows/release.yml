@@ -117,7 +117,7 @@ jobs:
         run: |
           # "pythonpath=tests" drops the source tree from the import path, so
           # the tests run against the installed wheel and not against "src".
-          .venv/bin/python -m pytest -o pythonpath=tests --cov=itu_doc_downloader
+          .venv/bin/python -m pytest -o pythonpath=tests --cov=itu_t_documents
 
   publish:
     name: Publish to PyPI

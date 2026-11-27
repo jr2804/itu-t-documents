@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from itu_doc_downloader.auth.ties import (
+from itu_t_documents.auth.ties import (
     LOGON_URL,
     SAML_REQUEST_FIELD,
     AuthenticationError,

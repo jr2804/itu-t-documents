@@ -104,8 +104,8 @@ interpreters. The workflow stops at the first failing job.
 The package is pure Python, so the wheel is a single `py3-none-any` wheel:
 
 ```text
-itu_doc_downloader-2026.1.0-py3-none-any.whl
-itu_doc_downloader-2026.1.0.tar.gz
+itu_t_documents-2026.1.0-py3-none-any.whl
+itu_t_documents-2026.1.0.tar.gz
 ```
 
 A `py3-none-any` wheel is valid for every interpreter the project supports,
@@ -144,11 +144,11 @@ PyPI verifies the identity of the workflow with the OIDC token of the job, no
 API token is involved.
 
 1. Create the project on [PyPI](https://pypi.org/manage/account/publishing/).
-   The name `itu-doc-downloader` has to be free.
+   The name `itu-t-documents` is reserved — create the project with it.
 2. Open the project, go to **Publishing** and add a **GitHub** publisher.
 3. Fill in the publisher:
    - **Owner**: `jr2804`
-   - **Repository name**: `itu-doc-downloader`
+   - **Repository name**: `itu-t-documents`
    - **Workflow name**: `release.yml`
    - **Environment**: leave it empty. Fill it in only if you add an
      environment to the workflow and want the publisher to be bound to it.

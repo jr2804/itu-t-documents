@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from sqlmodel import select
 
-from itu_doc_downloader.config.settings import Settings
-from itu_doc_downloader.models.documents import DocumentMetadata, DocumentRef, StudyPeriod
-from itu_doc_downloader.models.enums import DocType, Role
-from itu_doc_downloader.models.questions import Person, Question, WorkingGroup
-from itu_doc_downloader.storage.database import DocumentRow, MetadataStore, PersonRow, QuestionRow
+from itu_t_documents.config.settings import Settings
+from itu_t_documents.models.documents import DocumentMetadata, DocumentRef, StudyPeriod
+from itu_t_documents.models.enums import DocType, Role
+from itu_t_documents.models.questions import Person, Question, WorkingGroup
+from itu_t_documents.storage.database import DocumentRow, MetadataStore, PersonRow, QuestionRow
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 

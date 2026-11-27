@@ -1,4 +1,4 @@
-# ITU-T Document Downloader
+# ITU-T Documents
 
 Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP.
 
@@ -118,7 +118,7 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   store and the file cache are the sources of truth for cached data.
 - New behaviour needs a test — the coverage gate is 100%.
 - Never commit credentials. The configuration file lives in
-  `~/.config/itu-doc-downloader`, outside the repository. TIES credentials
+  `~/.config/itu-t-documents`, outside the repository. TIES credentials
   resolve environment → `config.toml` → secretspec; the secretspec layer is
   optional and must stay inert when the extra is not installed. The manifest
   of the secretspec provider is resolved from `ITU_SECRETSPEC_MANIFEST`, the
@@ -134,14 +134,14 @@ Start lean. Add child AGENTS.md entries incrementally when boundaries become dur
 
 Top-level boundaries in this project:
 
-- `src/itu_doc_downloader/` (primary package code)
-- `src/itu_doc_downloader/models/` (the ITU-T domain model — identifiers, enums)
-- `src/itu_doc_downloader/scraping/` (parsers of the ITU-T pages)
-- `src/itu_doc_downloader/auth/` (the TIES handshake)
-- `src/itu_doc_downloader/storage/` (the SQLite metadata store and the file cache)
+- `src/itu_t_documents/` (primary package code)
+- `src/itu_t_documents/models/` (the ITU-T domain model — identifiers, enums)
+- `src/itu_t_documents/scraping/` (parsers of the ITU-T pages)
+- `src/itu_t_documents/auth/` (the TIES handshake)
+- `src/itu_t_documents/storage/` (the SQLite metadata store and the file cache)
 - `tests/` (test suite)
 - `tests/fixtures/` (recorded ITU-T pages used by the parser tests)
-- `docs/` (documentation)
+- `docs/` (the documentation site — see `docs/AGENTS.md`)
 - `.github/` (the CI and the release workflow)
 - `.config/mise/` (task/tooling configuration)
 - `.config/mise/conf.d/` (the task fragments: docs, lint, format, quality, release, MCP, skills)

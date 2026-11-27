@@ -1,1 +1,1 @@
-"""Tests for ITU-T Document Downloader."""
+"""Tests for ITU-T Documents."""

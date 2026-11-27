@@ -1,4 +1,4 @@
-# Pre-commit hooks configuration for ITU-T Document Downloader
+# Pre-commit hooks configuration for ITU-T Documents
 #
 # Install pre-commit hooks:
 #   pre-commit install
