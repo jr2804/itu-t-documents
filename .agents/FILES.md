@@ -29,6 +29,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Release tasks          | `.config/mise/conf.d/release.toml`                              | `[tasks.version]`, `[tasks.build]`, `[tasks.release]` |
 | Documentation build     | `.config/mise/conf.d/docs.toml`                                 | `[tasks.docs]`, the builder and its plugins     |
 | The documentation site  | `docs/`                                                         | `index.md`, `getting-started.md`, `cli.md`, `python-api.md`, `mcp.md`, `catalogue.md` |
+| The agent skill         | `skills/itu-t-documents/`                                       | `SKILL.md`, `references/` — how to use the package |
 | The site navigation     | `zensical.toml`                                                 | `[project] nav`                                 |
 | CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
 | Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |

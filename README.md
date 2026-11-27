@@ -407,6 +407,20 @@ The full documentation lives in [`docs/`](docs/index.md) and is built with
 | [The ITU-T DMS](docs/reference/itu-dms.md) | the URL layout and the numbering scheme, as they were measured |
 | [API reference](docs/reference/api.md) | the generated reference of every public class and function |
 
+### For AI agents
+
+The repository ships a skill that teaches an agent the package: the CLI, the
+Python API and the MCP server, the vocabulary of the ITU-T and the errors a
+user hits.
+
+```bash
+bun x skills add https://github.com/jr2804/itu-t-documents
+```
+
+It lives in [`skills/itu-t-documents/`](skills/itu-t-documents/SKILL.md) and
+is verified with
+[skill-check](https://github.com/thedaviddias/skill-check).
+
 ## Contributing
 
 Contributions are welcome. Open an issue before a large change, so the

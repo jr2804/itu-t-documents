@@ -8,4 +8,4 @@ run = 'ty check src/ tests/'
 
 [tasks.spell]
 description = "Run spell checker (codespell)"
-run = "codespell src/ tests/"
+run = "codespell src/ tests/ skills/"

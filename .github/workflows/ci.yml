@@ -36,7 +36,7 @@ jobs:
         run: uvx ty check src tests
 
       - name: Spell check
-        run: uvx codespell --check-filenames src/ tests/ docs/ .github/
+        run: uvx codespell --check-filenames src/ tests/ docs/ .github/ skills/
 
       - name: Markdown lint
         run: uvx rumdl check --config .config/rumdl.toml .
