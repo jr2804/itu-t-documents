@@ -4,12 +4,8 @@ Always applicable. Boundaries, priorities, verification, checklist.
 
 ## Priorities
 
-1. Correctness
-2. Evidence
-3. Safety
-4. Minimal changes
-5. Consistency
-6. Performance
+Correctness, evidence, safety, minimal changes, consistency, performance — in
+that order, when two of them disagree.
 
 ## Boundaries
 
@@ -77,27 +73,21 @@ in a skill or `docs/`, linked once.
 - **No tree views.** Generate on demand with `rg --files | tree-cli --fromfile`.
 - **No history in AGENTS.md files.** Git log has routine history. Record only
   decisions costly to rediscover — in `.agents/HISTORY.md` (or
-  `.agents/history/` for overflow archives). See **Implementation Plans**
-  below for archiving completed plans.
+  `.agents/history/` for overflow archives).
 - **No TODO lists.** Use issue trackers or beads.
 
-## Implementation Plans
+## Plans, history and shipped docs
 
-- Plans, refactoring plans, and design docs go in `.agents/plans/<feature>/`
-  — NOT under version control (gitignored).
-- Name descriptively with phase-number prefixes so file order matches
-  implementation order, e.g. `01-sub-feature.md`, `02-next-sub-feature.md`.
-- NEVER commit plans to git. They are mutable working artifacts.
-- Shipped docs (user-facing guides, API references) go in `docs/` and
-  ARE committed.
-
-## Documentation
-
-- When `.agents/HISTORY.md` grows too large, archive older entries to
-  `.agents/history/`. Reference them from `.agents/HISTORY.md`.
-- Completed plans (`.agents/plans/<feature>/`) may be archived to
+- Plans, refactoring plans and design docs go in `.agents/plans/<feature>/` —
+  gitignored, mutable working artifacts, never committed. Name them
+  descriptively with phase-number prefixes, so the file order matches the
+  implementation order: `01-sub-feature.md`, `02-next-sub-feature.md`.
+- Shipped docs (user-facing guides, API references) go in `docs/` and ARE
+  committed.
+- `.agents/history/` IS version-controlled: it holds the durable decision
+  records. When `.agents/HISTORY.md` grows too large, archive the older
+  entries there and keep a pointer. Completed plans may be archived to
   `.agents/history/<feature>/` for long-term reference.
-- `.agents/history/` IS version-controlled (durable decision records).
 
 ## Size budget
 
@@ -110,20 +100,20 @@ rationale. Cut first; split the subtree only as a last resort.
 ## Verification
 
 ```bash
-mise all        # test + lint + format (composite task)
-mise test       # pytest with coverage gate (100%)
-mise lint       # ruff + ty + codespell
-mise format     # ruff format + isort + pyreorder
-mise format-md  # rumdl over docs/, .agents/, ./ (Markdown only)
+mise all        # every quality check: test, lint, spell, format, format-md, docs
+mise test       # pytest with the coverage gate (100%)
+mise lint       # ruff
+mise typecheck  # ty
+mise format-md  # rumdl over the Markdown
 ```
 
-Pre-commit hooks (`.pre-commit-config.yaml`) run a subset of the above on every
-commit. Run `pre-commit run --all-files` to check the whole tree.
+The pre-commit hooks (`.pre-commit-config.yaml`) run a subset of it;
+`pre-commit run --all-files` checks the whole tree.
 
 ## Response format
 
-Concise and specific. No filler, intros, or restated requirements.
-Answer direct questions directly.
+Concise and specific. No filler, intros or restated requirements. Answer
+direct questions directly.
 
-For review/debugging/analysis: findings with references, conclusion,
-approach. Mention caveats.
+For review, debugging and analysis: findings with references, conclusion and
+approach. Mention the caveats.

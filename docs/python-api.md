@@ -50,13 +50,29 @@ listing of the ITU-T only previews five documents per sub-type.
 ```python
 sync_meeting(study_group, meeting, study_period,
              doc_types=(DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT)) -> int
+sync_period(study_group, study_period, doc_types=(...)) -> int
+sync_study_group(study_group, study_period, doc_types=(...)) -> SyncReport
 sync_questions(study_group, study_period) -> int
 sync_detail(ref) -> DocumentMetadata
 ```
 
 `sync_meeting` stores the documents of a meeting in the local database and
-returns how many it stored. `sync_detail` stores the renditions of one
-document, as its detail page lists them. What a listing told about the
+returns how many it added. `sync_period` reads the period-wide listing for
+every requested type except temporary documents, which belong to meetings;
+with the default types it stores the contributions of the period.
+`sync_study_group` does both: it synchronises every meeting and then the
+period listing, and returns a `SyncReport`.
+
+```python
+report = api.sync_study_group(12, period)
+report.meetings   # (("260609", 191), ("250909", 159), ...), the count added
+report.period_only # documents of the period listing that have no meeting
+report.total      # every document this run added
+```
+
+A document can be posted between two meetings. The period listing finds it,
+and the store keeps it without a meeting. `sync_detail` stores the renditions
+of one document, as its detail page lists them. What a listing told about the
 document — the posting date, the meeting, the sources — stays as it is.
 
 ### Searching
@@ -70,33 +86,37 @@ find_documents(*, study_group=None, study_period=None, doc_type=None,
 The documents of the local database, newest number first. Every filter is
 optional; `source` matches partially and case insensitively and returns a
 document once, however many of its sources match. `study_period` names one
-stored study period; without it every stored period is searched.
+stored study period; without it every stored period is searched. The `meeting`
+filter has the store limitation described in [the CLI guide](cli.md#documents).
 
 ```python
 documents_for_question(study_group, question, meeting=None, doc_type=None,
                        study_period=None)
 contributions_by_source(study_group, source, study_period=None)
-top_sources(study_group, meetings=None, doc_types=(C, TD), limit=10)
+top_sources(study_group, *, last_meetings=None, study_period=None,
+            doc_types=(C, TD), limit=10)
 ```
 
 `documents_for_question` and `contributions_by_source` search the metadata
-store like `find_documents` does. `top_sources` counts the documents every source submitted:
+store like `find_documents` does. `top_sources` counts the documents every
+source submitted. `last_meetings` keeps the most recent stored meetings, and
+`meetings` names them directly; without either it counts every stored meeting:
 
 ```python
-for source in api.top_sources(study_group=12, meetings=("260609",), limit=3):
+for source in api.top_sources(study_group=12, last_meetings=3, limit=3):
     print(source.count, source.source)
 ```
 
 ```text
+28 TSB
+20 ITU-T Study Group 13
 19 ITU-T Study Group 12
-16 Luleå University of Technology (Sweden)
-14 China Mobile Communications Co. Ltd. (China)
 ```
 
 ### Downloading
 
 ```python
-download(ref, file_format=PDF, language=ENGLISH, output=None) -> Path
+download(ref, file_format=PDF, language=ENGLISH, output_file=None) -> Path
 ```
 
 Downloads a document, or serves it from the file cache. The rendition that
@@ -105,9 +125,16 @@ is preferred over a revision. The detail page that names the renditions adds
 them to the metadata store; what the listing told stays.
 
 ```python
+from pathlib import Path
+
 from itu_t_documents import DocFormat, DocLanguage, DocumentRef
 
-path = api.download(DocumentRef.parse("T25-SG12-C-0192"), DocFormat.WORD, DocLanguage.ENGLISH)
+path = api.download(
+    DocumentRef.parse("T25-SG12-C-0192"),
+    DocFormat.WORD,
+    DocLanguage.ENGLISH,
+    output_file=Path("contribution.docx"),
+)
 ```
 
 It raises `FileNotFoundError` when the DMS has no rendition in that format and
@@ -287,9 +314,16 @@ from itu_t_documents import Settings
 settings = Settings()
 settings.ties_username
 settings.cache_dir
+settings.config_dir
 settings.timeout
+settings.max_concurrency
 settings.secretspec_manifest
 ```
+
+`Settings(config_dir="~/itu-config")` reads that directory's
+`config.toml` and `secretspec.toml`; without it the directory comes from
+`ITU_CONFIG_DIR`, then from `~/.config/itu-t-documents`. `max_concurrency` is
+the connection limit of the HTTP client.
 
 | Setting | Environment variable | Meaning |
 |---------|----------------------|---------|

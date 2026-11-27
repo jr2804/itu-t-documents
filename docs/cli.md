@@ -9,6 +9,15 @@ command the tool prints a two-line reminder; `itu-t-documents default` prints
 the same text, `itu-t-documents --version` prints the installed version, and
 `--install-completion` installs shell completion for the commands.
 
+A command that fails prints one line on standard error and exits 1:
+
+```text
+itu-t-documents: T25-SG12-C-0192 is not available as PDF-E
+```
+
+A usage error — an unknown option, a missing argument or a value outside the
+choices — exits 2 before the command runs.
+
 ## The options
 
 Most commands take the study group and the study period. The filters of
@@ -22,7 +31,8 @@ Most commands take the study group and the study period. The filters of
 | `--type` | `sync`, `documents` | `TD`, `C`, `COL` or `R` | `sync`: `C` and `TD`; `documents`: every type |
 | `--question`, `-q` | `documents` | A question number, e.g. `5` for `Q5/12` | every question |
 | `--source`, `-s` | `documents` | A submitting organisation; the match is partial | every source |
-| `--limit`, `-l` | `documents` | The maximum number of results | no limit |
+| `--last-meetings` | `top-sources` | How many of the most recent stored meetings to count | `3` |
+| `--limit`, `-l` | `documents`, `top-sources` | The maximum number of results | `documents`: no limit; `top-sources`: `10` |
 
 ### What needs the network
 
@@ -30,7 +40,7 @@ Most commands take the study group and the study period. The filters of
 |---------|--------------|---------|
 | `periods`, `study-groups`, `structure`, `search`, `questions`, `meetings` | The ITU-T pages, through the HTTP cache | none |
 | `sync` | The ITU-T listings, into the metadata store | none |
-| `documents` | The metadata store only | none |
+| `documents`, `top-sources` | The metadata store only | none |
 | `download` | The file cache, then the ITU-T | TIES, unless the file is cached |
 | `auth` | The TIES login | TIES |
 | `mcp` | Every source above, per tool | TIES only for `download_document` |
@@ -184,13 +194,26 @@ itu-t-documents sync --study-group 12 --meeting 260609
 ```
 
 ```text
-260609: 276 documents
-276 documents stored in /home/you/.cache/itu-t-documents/metadata.db
+260609: 0 documents
+0 documents stored in /home/you/.cache/itu-t-documents/metadata.db
 ```
+
+The count is what this run added, not what the store holds: the 191 documents
+of the meeting were already there, so the second run adds nothing. On an empty
+store the first run adds them.
 
 Without `--meeting` every meeting of the study group is synchronised, which
 takes a while — a meeting of a busy study group holds several hundred
-documents.
+documents. The command also reads the period-wide listing of the study group,
+because a document can be posted between meetings and so belong to no meeting
+listing. A run that adds such documents prints a line of its own — this is
+the measured SG15 period listing on 27 November 2026:
+
+```text
+the period listing: 11 documents
+```
+
+The documents of that listing are stored without a meeting.
 
 Without `--type`, `sync` reads contributions (`C`) and temporary documents
 (`TD`), the two types a meeting is made of:
@@ -229,6 +252,32 @@ the last column ends in `(TU Berlin` — the cut is the command's, not a typo.
 Without a filter the command prints every stored document, newest number
 first.
 
+> **Known limitation.** The metadata store currently applies `--meeting` as
+> the whole study group: the option is accepted, but every stored document of
+> the group is returned. `sync --meeting` is not affected. Until the store is
+> fixed, filter the printed identifiers instead.
+
+### `top-sources`
+
+Show the sources that submitted the most documents to the most recent stored
+meetings. It answers from the metadata store, so run `sync` first.
+
+```bash
+itu-t-documents top-sources --study-group 12 --last-meetings 3 --limit 5
+```
+
+```text
+    28  TSB
+    20  ITU-T Study Group 13
+    19  ITU-T Study Group 12
+    16  ITU-T Study Group 21
+    14  ITU-T Study Group 11
+```
+
+The count covers contributions and temporary documents. The command counts
+only meetings that are already stored; `--last-meetings` selects the three
+most recent of them.
+
 ### `download`
 
 Download a document. This needs TIES credentials, unless the document was
@@ -255,8 +304,7 @@ PDF, for example — it is `MSW-E` only. When the requested rendition does not
 exist the command names it instead of writing an empty file:
 
 ```text
-T25-SG12-C-0192 is not available as PDF-E.
-Run `itu-t-documents documents` to see the documents that are known.
+itu-t-documents: T25-SG12-C-0192 is not available as PDF-E
 ```
 
 ## The accounts and the server
@@ -271,6 +319,12 @@ itu-t-documents auth
 
 ```text
 TIES login succeeded.
+```
+
+Without credentials the command fails like every other command:
+
+```text
+itu-t-documents: no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD or store them in /home/you/.config/itu-t-documents/config.toml
 ```
 
 ### `mcp`

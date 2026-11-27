@@ -34,18 +34,18 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
 | Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |
 | Release versioning    | `.github/scripts/calver.py`                                    | `next_version`, `published_version`            |
-| Domain model           | `src/itu_t_documents/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |
-| Page parsers           | `src/itu_t_documents/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py` |
-| The catalogue          | `src/itu_t_documents/catalogue.py`                          | `ItuCatalogue`, `CatalogueEntry`               |
-| The errors             | `src/itu_t_documents/errors.py`                             | `ItuError`, `AccessDeniedError`, `UnknownEntityError` |
+| Domain model           | `src/itu_t_documents/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `metadata.py`, `study_periods.py`, `enums.py` |
+| Page parsers           | `src/itu_t_documents/scraping/`                             | `listing.py`, `listing_rows.py`, `listing_navigation.py`, `meeting_page.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py`, `pages.py` |
+| The catalogue          | `src/itu_t_documents/catalogue.py`                          | `ItuCatalogue`; `catalogue_search.py` (`CatalogueEntry`) |
+| The errors             | `src/itu_t_documents/errors.py`                             | `ItuError`, `AccessDeniedError`, `ScrapingError`, `UnknownEntityError` |
 | TIES handshake         | `src/itu_t_documents/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
 | HTTP access            | `src/itu_t_documents/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
 | Configuration           | `src/itu_t_documents/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |
 | secretspec credentials  | `src/itu_t_documents/config/secretspec_source.py`           | `secretspec_credentials`, `SecretspecConfigSource` |
-| Metadata store         | `src/itu_t_documents/storage/database.py`                   | `MetadataStore`, the SQLModel tables            |
+| Metadata store         | `src/itu_t_documents/storage/`                             | `database.py` (`MetadataStore`), `tables.py`, `queries.py`, `documents.py`, `questions.py`, `files.py` |
 | Document file cache    | `src/itu_t_documents/storage/files.py`                      | `FileCache`                                    |
 | URL builders           | `src/itu_t_documents/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
-| High level API         | `src/itu_t_documents/api.py`                                | `ItuDocuments`, `DocumentRecord`, `SourceCount` |
+| High level API         | `src/itu_t_documents/api.py`                                | `ItuDocuments`, `SyncReport`; `api_sync.py`, `api_queries.py` |
 | MCP server             | `src/itu_t_documents/mcp/`                                  | `server.py` (`mcp`, the list of the tools), one module per group of tools |
 | Recorded ITU-T pages   | `tests/fixtures/`                                               | `*.html`, the input of the parser tests        |
 | Cache directory        | `~/.cache/itu-t-documents/`                                 | `metadata.db`, `http-cache.sqlite`, `files/`   |

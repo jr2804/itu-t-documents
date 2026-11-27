@@ -119,9 +119,10 @@ on 8 October 2010, before or between the listed meetings — appear in the
 listing of no meeting. For `T25-SG13` and `T17-SG15` the two routes agree: 972
 and 2858 contributions, each in the listing of a meeting.
 
-`sync` lists the meetings one by one, so it stores a contribution only when a
-meeting lists it. The listing of a whole study period is read by
-`fetch_documents` without a meeting, see [the Python API](../python-api.md).
+`sync` lists the meetings one by one and then reads the listing of the whole
+study period, so it also stores a contribution posted between two meetings —
+without a meeting. `fetch_documents` without a meeting reads that period
+listing directly; see [the Python API](../python-api.md).
 
 ## Downloads
 

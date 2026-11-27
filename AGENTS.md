@@ -155,6 +155,7 @@ Top-level boundaries in this project:
 - `tests/` (test suite)
 - `tests/fixtures/` (recorded ITU-T pages used by the parser tests)
 - `docs/` (the documentation site — see `docs/AGENTS.md`)
+- `skills/itu-t-documents/` (the agent skill that teaches the package)
 - `.github/` (the CI and the release workflow)
 - `.config/mise/` (task/tooling configuration)
 - `.config/mise/conf.d/` (the task fragments: docs, lint, format, quality, release, MCP, skills)

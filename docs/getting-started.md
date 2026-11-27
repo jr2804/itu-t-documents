@@ -179,8 +179,8 @@ itu-t-documents sync --study-group 12 --meeting 260609
 ```
 
 ```text
-260609: 276 documents
-276 documents stored in /home/you/.cache/itu-t-documents/metadata.db
+260609: 191 documents
+191 documents stored in /home/you/.cache/itu-t-documents/metadata.db
 ```
 
 Search what was stored:

@@ -90,9 +90,13 @@ itu-t-documents sync --study-group 12 --meeting 260609
 ```
 
 ```text
-260609: 276 documents
-276 documents stored in /home/you/.cache/itu-t-documents/metadata.db
+260609: 191 documents
+191 documents stored in /home/you/.cache/itu-t-documents/metadata.db
 ```
+
+The count is what the run added; a second run of the same meeting adds
+nothing. Without `--meeting`, `sync` also reads the period-wide listing,
+which finds a document posted between meetings.
 
 Search what was stored — this never touches the network:
 
@@ -101,9 +105,23 @@ itu-t-documents documents --study-group 12 --question 5 --limit 3
 ```
 
 ```text
-T25-SG12-260609-TD-GEN-0467      TD   Q7,6,5,4,10 Executive Summary of the Working Party 1/12 Meeting            Chair WP1/12
-T25-SG12-260609-TD-GEN-0466      TD   Q7,6,5,4,10 Draft agenda for WP1/12: Terminals and multimedia subjective   Chair WP1/12
-T25-SG12-260609-TD-GEN-0433      TD   Q5          Status report of Question 5/12: Telephonometric methodologie   Rapporteur Q5/12
+T25-SG12-270119-TD-GEN-0617      TD   Q5          Report of Question 5/12 interim meeting (e-meeting, 3 Novemb   Rapporteur Q5/12
+T25-SG12-270119-TD-GEN-0587      TD   Q5          Status report of Question 5/12: Telephonometric methodologie   Rapporteur Q5/12
+T25-SG12-270119-TD-GEN-0544      TD   Q5,13       LS/i on initiation of draft new Recommendation ITU-T H.IPTV-   ITU-T Study Group 21
+```
+
+The most prolific sources of the last three stored meetings:
+
+```bash
+itu-t-documents top-sources --study-group 12 --last-meetings 3 --limit 5
+```
+
+```text
+    28  TSB
+    20  ITU-T Study Group 13
+    19  ITU-T Study Group 12
+    16  ITU-T Study Group 21
+    14  ITU-T Study Group 11
 ```
 
 Download a document. This is the one step that needs a TIES account:
@@ -180,6 +198,7 @@ are written up in [the reference](docs/reference/itu-dms.md).
 | `questions` | list the questions under study, with their working group and their rapporteurs |
 | `sync` | fetch the documents of a meeting into the local database |
 | `documents` | search the documents in the local database |
+| `top-sources` | count the most prolific sources of the stored meetings |
 | `download` | download a document |
 | `auth` | check whether the TIES credentials are configured and usable |
 | `mcp` | run the MCP server over stdio |
@@ -188,15 +207,16 @@ The options:
 
 | Option | Commands | Meaning | Default |
 |--------|----------|---------|---------|
-| `--study-group`, `-g` | `structure`, `meetings`, `questions`, `sync`, `documents` | the study group, e.g. `12` | `12` |
-| `--study-period`, `-p` | `study-groups`, `structure`, `meetings`, `questions`, `sync`, `search` | the study period, e.g. `2025-2028` | the current period, `2025-2028` |
+| `--study-group`, `-g` | `structure`, `meetings`, `questions`, `sync`, `documents`, `top-sources` | the study group, e.g. `12` | `12` |
+| `--study-period`, `-p` | `study-groups`, `structure`, `meetings`, `questions`, `sync`, `search`, `top-sources` | the study period, e.g. `2025-2028` | the current period, `2025-2028` |
 | `--study-period`, `-p` | `documents` | the study period to search in, e.g. `2025-2028` | every period |
 | `--meeting`, `-m` | `sync`, `documents` | a meeting, given by its DMS code, e.g. `270119` | every meeting |
 | `--type` | `sync` | the document type to fetch: `TD`, `C`, `COL` or `R` | `C` and `TD` |
 | `--type` | `documents` | the document type to search for: `TD`, `C`, `COL` or `R` | every type |
 | `--question`, `-q` | `documents` | a question number, e.g. `5` for `Q5/12` | every question |
 | `--source`, `-s` | `documents` | a submitting organisation; the match is partial | every source |
-| `--limit`, `-l` | `documents` | the maximum number of results | no limit |
+| `--last-meetings` | `top-sources` | how many of the most recent stored meetings to count | `3` |
+| `--limit`, `-l` | `documents`, `top-sources` | the maximum number of results | `documents`: no limit; `top-sources`: `10` |
 | `--search`, `-s` | `search` | the text to look for, e.g. `speech` | required |
 | `--document` | `download` | the DMS identifier | required |
 | `--format` | `download` | `PDF`, `MSW` (Word), `ZIP` or `HTM` | `PDF` |
@@ -231,8 +251,8 @@ with ItuDocuments() as api:
     for document in api.documents_for_question(study_group=12, question=5, doc_type=DocType.TEMPORARY_DOCUMENT):
         print(document.document_id, document.title)
 
-    # The most prolific sources of the last three meetings
-    for source in api.top_sources(study_group=12, meetings=("270119", "261015", "260609")):
+    # The most prolific sources of the last three stored meetings
+    for source in api.top_sources(study_group=12, last_meetings=3):
         print(source.count, source.source)
 ```
 
@@ -266,7 +286,8 @@ itu-t-documents mcp
 
 The server speaks the Model Context Protocol over stdio. It opens no port and
 holds no state of its own — everything it knows is in the local database of
-the package.
+the package. A search tool synchronises only what the store lacks, so a
+question about stored data is answered offline.
 
 | Tool | Answers |
 |------|---------|
@@ -275,7 +296,7 @@ the package.
 | `documents_for_question` | *"Show me all TDs of Q5/12 at meeting XYZ"* |
 | `contributions_by_source` | *"Which contributions were made by company XYZ in study group 12?"* |
 | `top_sources` | *"Which source submitted the most documents (TD + C) to the last three meetings?"* |
-| `search_documents` | *"Show me the contributions of Huawei in 2025"* |
+| `search_documents` | *"Show me the contributions of Huawei in SG12"* |
 | `download_document` | *"Download the collective letter of SG12 in French"* |
 | `list_periods` | *"Which study periods are there?"* |
 | `list_study_groups` | *"Which study groups does the ITU-T have?"* |
@@ -360,8 +381,7 @@ is not what happened. The package reports that as a missing membership:
 
 ```text
 $ itu-t-documents download --document T25-SG13-C-0001 --format MSW
-T25-SG13-C-0001 is not accessible with these credentials; the membership of
-the TIES account does not cover SG13.
+itu-t-documents: T25-SG13-C-0001 is not accessible with these credentials; the membership of the TIES account does not cover SG13
 ```
 
 The configuration file, the secretspec provider and every way to store a
