@@ -16,7 +16,9 @@ from pathlib import Path
 
 from sqlmodel import Session, select
 
+from itu_doc_downloader.catalogue import ItuCatalogue
 from itu_doc_downloader.config.settings import Settings
+from itu_doc_downloader.errors import AccessDeniedError, IncompleteListingError
 from itu_doc_downloader.http.client import ItuClient, ItuHttpClient
 from itu_doc_downloader.models.documents import DocumentMetadata, DocumentRef, MeetingId, StudyPeriod
 from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
@@ -39,16 +41,6 @@ from itu_doc_downloader.urls import detail_url, listing_url, period_index, quest
 
 #: Template of the path of the meeting index page of a study group.
 MEETING_INDEX_PATH = "/md/{prefix}-{group}/en"
-
-
-class IncompleteListingError(RuntimeError):
-    """Raised when a document listing holds fewer documents than it reports.
-
-    The ITU-T truncates a listing that is longer than the page size the web
-    interface accepts. The package sets that page size, so a truncated
-    listing means that the site changed and the documents of the listing
-    would be lost silently.
-    """
 
 
 @dataclass(frozen=True)
@@ -121,6 +113,7 @@ class ItuDocuments:
         self.client = client or ItuHttpClient(self.settings)
         self.store = store or MetadataStore(self.settings)
         self.cache = cache or FileCache(self.settings)
+        self.catalogue = ItuCatalogue(self.settings, client=self.client)
         self._owns_client = client is None
 
     def close(self) -> None:
@@ -460,6 +453,9 @@ class ItuDocuments:
         Raises:
             FileNotFoundError: When the document is not available in the
                 requested format and language.
+            AccessDeniedError: When the TIES account may not see the
+                document. The membership of a TIES account covers only the
+                study groups it belongs to.
         """
         cached = self.cache.find(ref, file_format, language)
         if cached is not None:
@@ -479,6 +475,12 @@ class ItuDocuments:
 
         session = self.client.authenticate(target.url)
         response = session.get(target.url, follow_redirects=True)
+        if response.status_code in (401, 403):
+            raise AccessDeniedError(
+                f"{ref.document_id} is not accessible with these credentials; the membership of the TIES account does not cover {ref.study_group_code}"
+            )
+        if response.status_code == 404:
+            raise FileNotFoundError(f"{ref.document_id} is not available as {file_format.value}-{language.value}")
         response.raise_for_status()
         content = response.content
 

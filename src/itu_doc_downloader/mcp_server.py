@@ -48,7 +48,7 @@ def _period(label: str | None) -> StudyPeriod:
     """Return the study period, defaulting to the current one."""
     if label:
         return StudyPeriod.parse(label)
-    return StudyPeriod(start_year=2025, end_year=2028)
+    return StudyPeriod.current()
 
 
 def _meeting(code: str) -> MeetingId:
@@ -349,6 +349,133 @@ def download_document(
         return {"path": str(path), "size_bytes": path.stat().st_size}
     finally:
         api.close()
+
+
+# ----------------------------------------------------------------------
+# The catalogue of the ITU-T study groups
+# ----------------------------------------------------------------------
+
+
+@mcp.tool
+def list_periods() -> list[dict[str, Any]]:
+    """List the study periods of the ITU-T.
+
+    Use this to find the study period a document belongs to. A period is
+    named by its years, e.g. "2025-2028", and by its DMS code, e.g. "T25".
+
+    Returns:
+        The study periods the ITU-T knows, oldest first.
+    """
+    current = StudyPeriod.current()
+    return [
+        {
+            "label": period.label,
+            "code": period.code,
+            "start_year": period.start_year,
+            "end_year": period.end_year,
+            "current": period == current,
+        }
+        for period in StudyPeriod.all()
+    ]
+
+
+@mcp.tool
+def list_study_groups(study_period: str | None = None) -> list[dict[str, Any]]:
+    """List the study groups of a study period.
+
+    The study groups change from period to period, so they are read from the
+    ITU-T. Use this before a search to find the study group that holds the
+    documents of interest.
+
+    Args:
+        study_period: The study period, e.g. "2025-2028" or "2025". Defaults
+            to the current study period.
+
+    Returns:
+        The study groups of the period, ordered by their number.
+    """
+    period = _period(study_period)
+    api = ItuDocuments(_settings())
+    try:
+        return [
+            {
+                "code": group.code,
+                "number": group.number,
+                "title": group.title,
+                "study_period": group.period.label,
+            }
+            for group in api.catalogue.study_groups(period)
+        ]
+    finally:
+        api.close()
+
+
+@mcp.tool
+def list_structure(study_group: int = 12, study_period: str | None = None) -> dict[str, Any]:
+    """Show the structure of an ITU-T study group.
+
+    The structure holds the plenary, the working groups, the questions under
+    study and the other groups of the study group — regional groups, focus
+    groups and the joint coordination activities.
+
+    Args:
+        study_group: The number of the study group, e.g. 12.
+        study_period: The study period, e.g. "2025-2028" or "2025". Defaults
+            to the current study period.
+
+    Returns:
+        The plenary, the working groups, the questions and the other groups.
+    """
+    period = _period(study_period)
+    api = ItuDocuments(_settings())
+    try:
+        structure = api.catalogue.structure(study_group, period)
+    finally:
+        api.close()
+    return {
+        "study_group": structure.study_group.code,
+        "study_period": structure.period.label,
+        "plenary": structure.plenary.code if structure.plenary else None,
+        "working_groups": [{"code": group.code, "name": group.name} for group in structure.working_groups],
+        "questions": [
+            {"code": question.code, "number": question.number, "title": question.title, "working_group": question.working_group.code}
+            for question in structure.questions
+        ],
+        "other_groups": [{"code": group.code, "title": group.title, "kind": group.kind} for group in structure.other_groups],
+    }
+
+
+@mcp.tool
+def search_structure(text: str, study_period: str | None = None) -> list[dict[str, Any]]:
+    """Search the working groups, questions and other groups of the ITU-T.
+
+    Use this to find the group that handles a topic, e.g. "speech" or
+    "multimedia".
+
+    Args:
+        text: The text to look for, e.g. "speech".
+        study_period: The study period, e.g. "2025-2028" or "2025". Defaults
+            to the current study period.
+
+    Returns:
+        The matching entries of the catalogue.
+    """
+    period = _period(study_period)
+    api = ItuDocuments(_settings())
+    try:
+        entries = api.catalogue.search(text, period)
+    finally:
+        api.close()
+    return [
+        {
+            "kind": entry.kind,
+            "code": entry.code,
+            "title": entry.title,
+            "study_group": entry.study_group,
+            "study_period": entry.period,
+        }
+        for entry in entries
+    ]
 
 
 def main() -> None:

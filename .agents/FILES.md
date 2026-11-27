@@ -26,8 +26,10 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Pre-commit config      | `.pre-commit-config.yaml`                                       | Hook list                                       |
 | MCP server config      | `.config/mise/conf.d/mcp.toml`                                  | `[tasks.add-mcp-servers]`, tool list            |
 | Skills install task    | `.config/mise/conf.d/skills.toml`                               | `[tasks.add-skills]`, skill list                |
-| Domain model           | `src/itu_doc_downloader/models/`                               | `documents.py`, `questions.py`, `enums.py`      |
-| Page parsers           | `src/itu_doc_downloader/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py` |
+| Domain model           | `src/itu_doc_downloader/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |
+| Page parsers           | `src/itu_doc_downloader/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py` |
+| The catalogue          | `src/itu_doc_downloader/catalogue.py`                          | `ItuCatalogue`, `CatalogueEntry`               |
+| The errors             | `src/itu_doc_downloader/errors.py`                             | `ItuError`, `AccessDeniedError`, `UnknownEntityError` |
 | TIES handshake         | `src/itu_doc_downloader/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
 | HTTP access            | `src/itu_doc_downloader/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
 | Configuration           | `src/itu_doc_downloader/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |

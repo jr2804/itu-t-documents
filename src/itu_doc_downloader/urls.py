@@ -27,6 +27,7 @@ PERIOD_INDICES: dict[str, int] = {
     "2017-2020": 16,
     "2022-2024": 17,
     "2025-2028": 18,
+    "2029-2032": 19,
 }
 
 
@@ -56,6 +57,21 @@ def study_group_page_url(period: StudyPeriod, study_group: int) -> str:
         The absolute URL of the study group page.
     """
     return f"{BASE_URL}/en/ITU-T/studygroups/{period.label}/{study_group:02d}/Pages/default.aspx"
+
+
+def study_groups_index_url(period: StudyPeriod) -> str:
+    """Return the URL of the index page of the study groups of a period.
+
+    The page lists the study groups of the period. They change from period
+    to period, so the list cannot be hard coded.
+
+    Args:
+        period: The study period.
+
+    Returns:
+        The absolute URL of the index page.
+    """
+    return f"{BASE_URL}/en/ITU-T/studygroups/{period.label}/Pages/default.aspx"
 
 
 def questions_url(study_group: int, index: int) -> str:

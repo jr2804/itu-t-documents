@@ -28,9 +28,9 @@ def test_period_index_of_the_current_period() -> None:
 
 
 def test_period_index_of_an_unknown_period() -> None:
-    """An unknown study period has no index."""
-    with pytest.raises(KeyError):
-        period_index(StudyPeriod(start_year=1999, end_year=2002))
+    """A study period the ITU-T does not know cannot be constructed."""
+    with pytest.raises(ValueError, match="1999-2002"):
+        StudyPeriod(start_year=1999, end_year=2002)
 
 
 def test_listing_url_of_a_meeting() -> None:

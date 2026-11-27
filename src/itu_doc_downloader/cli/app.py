@@ -35,7 +35,11 @@ app.command(commands.download)
 app.command(commands.documents)
 app.command(commands.mcp)
 app.command(commands.meetings)
+app.command(commands.periods)
 app.command(commands.questions)
+app.command(commands.search)
+app.command(commands.structure)
+app.command(commands.study_groups, name="study-groups")
 app.command(commands.sync)
 app.default(commands.default)  # `itu-doc-downloader` with no arguments
 

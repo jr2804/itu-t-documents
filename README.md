@@ -78,6 +78,21 @@ Both are optional; the environment wins over the file. A third, lowest priority
 source is a [secretspec](https://github.com/cachix/secretspec) provider — see
 [Credentials from secretspec](#credentials-from-secretspec).
 
+### The membership of the account
+
+A TIES account is valid for the whole ITU-T, but its membership covers only
+the study groups it belongs to. The metadata of a document — its listing, its
+title, its sources — is public and is read without a login, but the file
+itself is not: a document outside the membership answers `401 Unauthorized`
+with a page that blames invalid credentials, which is not what happened. The
+package reports that as a missing membership:
+
+```text
+$ itu-doc-downloader download --document T25-SG13-C-0001 --format MSW
+T25-SG13-C-0001 is not accessible with these credentials; the membership of
+the TIES account does not cover SG13.
+```
+
 Check that the login works with:
 
 ```bash
@@ -141,13 +156,33 @@ their identifier carries no meeting. The numbers are not consecutive — a
 withdrawn document leaves a hole — and the number of a temporary document runs
 per sub-type over the whole study period.
 
+## The catalogue of the ITU-T
+
+The study groups, the working groups and the questions change from study
+period to period — SG9 and SG16 existed in 2022-2024 and were replaced by SG21
+in 2025-2028. They are therefore read from the ITU-T and never hard coded, and
+an entity that does not exist is refused instead of being returned empty.
+
+```python
+from itu_doc_downloader import ItuCatalogue, StudyPeriod
+
+with ItuCatalogue() as catalogue:
+    period = StudyPeriod.from_year(2025)          # the period that starts in 2025
+
+    [group.code for group in catalogue.study_groups(period)]   # SG02, SG03, SG05, …
+
+    structure = catalogue.structure(12, period)
+    structure.question(5).title                   # the title of Q5/12
+    structure.question(99)                        # raises UnknownEntityError
+```
+
 ## Python API
 
 ```python
 from itu_doc_downloader import DocType, ItuDocuments, StudyPeriod
 
 with ItuDocuments() as api:
-    period = StudyPeriod(start_year=2025, end_year=2028)
+    period = StudyPeriod.from_year(2025)
 
     # Fetch the documents of a meeting and store them locally
     api.sync_meeting(12, meeting, period, (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT))
@@ -165,6 +200,10 @@ with ItuDocuments() as api:
 
 ```text
 itu-doc-downloader auth                          # check the TIES credentials
+itu-doc-downloader periods                       # list the study periods
+itu-doc-downloader study-groups                  # list the study groups of a period
+itu-doc-downloader structure --study-group 12    # the groups and questions of a study group
+itu-doc-downloader search --search speech        # search the groups of the ITU-T
 itu-doc-downloader meetings                      # list the meetings of a study group
 itu-doc-downloader questions                     # list the questions under study
 itu-doc-downloader sync --meeting 260609         # fetch and store the documents
@@ -201,6 +240,10 @@ ITU-T users ask most often:
   `contributions_by_source`
 - *"Which source submitted the most documents (TD + C) to the last three
   meetings?"* — `top_sources`
+
+The catalogue of the ITU-T is offered as well: `list_periods`,
+`list_study_groups`, `list_structure` and `search_structure` answer *"Which
+study groups are there?"* and *"Which working group deals with speech?"*.
 
 ## Caches
 

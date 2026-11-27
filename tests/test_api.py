@@ -8,6 +8,7 @@ import pytest
 
 from itu_doc_downloader.api import IncompleteListingError, ItuDocuments
 from itu_doc_downloader.config.settings import Settings
+from itu_doc_downloader.errors import AccessDeniedError
 from itu_doc_downloader.models.documents import DocumentRef, MeetingId, StudyPeriod
 from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
 from tests.fakes import DOCUMENT_BYTES, FakeClient
@@ -143,3 +144,19 @@ def test_download_a_document_that_was_only_revised(api: ItuDocuments) -> None:
 
     assert path.name == "MSW-E-R1.docx"
     assert path.read_bytes() == DOCUMENT_BYTES
+
+
+def test_download_a_document_the_account_may_not_see(api: ItuDocuments, fake_client: FakeClient) -> None:
+    """A document outside the membership of the account is refused."""
+    fake_client.denied = True
+
+    with pytest.raises(AccessDeniedError, match="SG13"):
+        api.download(DocumentRef.parse("T25-SG13-C-0001"), DocFormat.WORD, DocLanguage.ENGLISH)
+
+
+def test_download_a_document_that_is_gone(api: ItuDocuments, fake_client: FakeClient) -> None:
+    """A document that the ITU-T does not have any more is reported."""
+    fake_client.missing = True
+
+    with pytest.raises(FileNotFoundError):
+        api.download(DocumentRef.parse("T25-SG12-C-0192"), DocFormat.WORD, DocLanguage.ENGLISH)

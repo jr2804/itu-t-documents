@@ -9,10 +9,12 @@ from itu_doc_downloader.api import DocumentRecord, IncompleteListingError, ItuDo
 from itu_doc_downloader.auth.ties import AuthenticationError
 from itu_doc_downloader.cli import args
 from itu_doc_downloader.config.settings import Settings
+from itu_doc_downloader.errors import AccessDeniedError, UnknownEntityError
 from itu_doc_downloader.http.client import ItuHttpClient
 from itu_doc_downloader.mcp_server import main as run_mcp
 from itu_doc_downloader.models.documents import DocumentRef, MeetingId, StudyPeriod
 from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType
+from itu_doc_downloader.urls import period_index
 
 
 def _period(label: str) -> StudyPeriod:
@@ -152,4 +154,69 @@ def download(
             print(f"{ref.document_id} is not available as {file_format.upper()}-{language.upper()}.")
             print("Run `itu-doc-downloader documents` to see the documents that are known.")
             return
+        except AccessDeniedError as error:
+            print(f"{error}.")
+            print("The membership of a TIES account covers only the study groups it belongs to.")
+            return
     print(f"{path} ({path.stat().st_size} bytes)")
+
+
+# ----------------------------------------------------------------------
+# The catalogue of the ITU-T study groups
+# ----------------------------------------------------------------------
+
+
+def periods() -> None:
+    """List the study periods the ITU-T knows."""
+    for period in StudyPeriod.all():
+        marker = " (current)" if period == StudyPeriod.current() else ""
+        print(f"{period.label:<12} {period.code:<5} net4 index {period_index(period)}{marker}")
+
+
+def study_groups(study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD) -> None:
+    """List the study groups of a study period."""
+    period = _period(study_period)
+    with ItuDocuments() as api:
+        groups = api.catalogue.study_groups(period)
+    if not groups:
+        print(f"The ITU-T publishes no study group for {period.label}.")
+        return
+    for group in groups:
+        print(f"{group.code:<6} {group.label}")
+
+
+def structure(
+    study_group: args.StudyGroup = 12,
+    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+) -> None:
+    """Show the structure of a study group."""
+    period = _period(study_period)
+    with ItuDocuments() as api:
+        try:
+            found = api.catalogue.structure(study_group, period)
+        except UnknownEntityError as error:
+            print(f"{error}.")
+            return
+    if found.plenary is not None:
+        print(f"{found.plenary.code:<12} plenary")
+    for working_group in found.working_groups:
+        print(f"{working_group.code:<12} {working_group.name or ''}")
+    for question in found.questions:
+        print(f"{question.code:<12} {question.title}")
+    for group in found.other_groups:
+        print(f"{group.code:<12} {group.title}")
+
+
+def search(
+    text: args.SearchText,
+    study_period: args.StudyPeriod = args.DEFAULT_STUDY_PERIOD,
+) -> None:
+    """Search the working groups, questions and other groups of the ITU-T."""
+    period = _period(study_period)
+    with ItuDocuments() as api:
+        entries = api.catalogue.search(text, period)
+    if not entries:
+        print(f"Nothing in {period.label} matches {text!r}.")
+        return
+    for entry in entries:
+        print(f"{entry.kind:<16} {entry.code:<14} {entry.title}")

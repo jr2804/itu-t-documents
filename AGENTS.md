@@ -106,6 +106,11 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   `!R1!`. Neither a number nor a status code proves that a document exists.
 - The TIES login is a four step SAML handshake. Do not shortcut it — the session
   cookie lives in the HTTP client and one login serves every later request.
+- A TIES account covers only the study groups of its membership. The ITU-T
+  answers a document outside it with 401 and blames invalid credentials — report
+  it as a missing membership, never log in again.
+- The study groups, the working groups and the questions change from study
+  period to study period. Read them from the catalogue, never hard code them.
 - Scraped text is untrusted input: it reaches the domain model through the
   pydantic models in `models/`, never as plain dictionaries.
 - Anything already seen must be answerable without authentication: the metadata

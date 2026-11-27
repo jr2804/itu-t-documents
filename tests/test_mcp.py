@@ -11,7 +11,11 @@ import pytest
 
 from itu_doc_downloader import mcp_server
 from itu_doc_downloader.api import DocumentRecord, SourceCount
+from itu_doc_downloader.catalogue import CatalogueEntry
+from itu_doc_downloader.models.catalogue import StudyGroupStructure
+from itu_doc_downloader.models.documents import StudyGroup
 from itu_doc_downloader.models.enums import DocType
+from itu_doc_downloader.models.questions import Question, WorkingGroup
 
 
 class FakeMeeting:
@@ -26,12 +30,42 @@ class FakeMeeting:
         self.end_date = date(2027, 1, 27)
 
 
+class FakeCatalogue:
+    """The catalogue of the fake API."""
+
+    def study_groups(self, period) -> list:
+        """Return the study groups of the period."""
+        return [StudyGroup(number=12, period=period), StudyGroup(number=21, period=period)]
+
+    def structure(self, study_group: int, period) -> StudyGroupStructure:
+        """Return the structure of the study group."""
+        group = StudyGroup(number=study_group, period=period)
+        return StudyGroupStructure(
+            study_group=group,
+            plenary=WorkingGroup(code="PLEN", name="PLEN"),
+            working_groups=[WorkingGroup(code="WP1/12", name="WP1 12")],
+            questions=[
+                Question(
+                    number=5,
+                    study_group=study_group,
+                    title="Telephonometric methodologies",
+                    working_group=WorkingGroup(code="WP1/12", name="WP1 12"),
+                )
+            ],
+        )
+
+    def search(self, text: str, period=None) -> list:
+        """Return the entries that mention the text."""
+        return [CatalogueEntry(kind="question", code="Q5/12", title="Telephonometric methodologies", study_group=12, period="2025-2028")]
+
+
 class FakeApi:
     """A stand-in for the API used by the MCP tools."""
 
     def __init__(self) -> None:
         """Create the fake API."""
         self.calls: list[tuple] = []
+        self.catalogue = FakeCatalogue()
 
     def __enter__(self) -> FakeApi:
         return self
@@ -182,3 +216,40 @@ def test_search_documents_tool(fake_api: FakeApi) -> None:
     assert _payload(result) == []
     call = next(call for call in fake_api.calls if call[0] == "find_documents")
     assert call[1]["doc_type"] is DocType.TEMPORARY_DOCUMENT
+
+
+def test_list_periods_tool() -> None:
+    """The periods tool returns the study periods of the ITU-T."""
+    result = _call("list_periods", {})
+
+    payload = _payload(result)
+    assert any(item["label"] == "2025-2028" for item in payload)
+    assert any(item["current"] for item in payload)
+
+
+def test_list_study_groups_tool(fake_api: FakeApi) -> None:
+    """The study groups tool returns the study groups of a period."""
+    result = _call("list_study_groups", {"study_period": "2025-2028"})
+
+    payload = _payload(result)
+    assert [item["code"] for item in payload] == ["SG12", "SG21"]
+
+
+def test_list_structure_tool(fake_api: FakeApi) -> None:
+    """The structure tool returns the groups of a study group."""
+    result = _call("list_structure", {"study_group": 12, "study_period": "2025-2028"})
+
+    payload = _payload(result)
+    assert payload["study_group"] == "SG12"
+    assert payload["plenary"] == "PLEN"
+    assert payload["working_groups"][0]["code"] == "WP1/12"
+    assert payload["questions"][0]["code"] == "Q5/12"
+
+
+def test_search_structure_tool(fake_api: FakeApi) -> None:
+    """The catalogue search tool returns the matching entries."""
+    result = _call("search_structure", {"text": "speech", "study_period": "2025-2028"})
+
+    payload = _payload(result)
+    assert payload[0]["code"] == "Q5/12"
+    assert payload[0]["kind"] == "question"

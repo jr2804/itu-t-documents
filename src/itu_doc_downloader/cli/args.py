@@ -12,6 +12,10 @@ APP_NAME_UPPERCASE = "ITU_DOC_DOWNLOADER"
 #: The study period used when the user does not name one.
 DEFAULT_STUDY_PERIOD = "2025-2028"
 
+#: The study period used by the commands that read the structure of the
+#: ITU-T. It follows the current year.
+DEFAULT_PERIOD_YEAR = "2025"
+
 # Global options
 
 StudyGroup = Annotated[
@@ -110,5 +114,23 @@ OutputFile = Annotated[
         alias="-o",
         help="Path to output file",
         env_var=f"{APP_NAME_UPPERCASE}_OUTPUT_FILE",
+    ),
+]
+
+SearchText = Annotated[
+    str,
+    Parameter(
+        name="--search",
+        alias="-s",
+        help="Text to look for, e.g. speech",
+    ),
+]
+
+WorkingGroupCode = Annotated[
+    str,
+    Parameter(
+        name="--working-group",
+        alias="-w",
+        help="Working group code, e.g. WP1/12",
     ),
 ]

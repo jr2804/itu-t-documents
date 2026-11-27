@@ -28,6 +28,8 @@ from collections.abc import Iterator
 import httpx
 from lxml import html
 
+from itu_doc_downloader.errors import AuthenticationError
+
 #: Logon endpoint of the ITU-T identity provider.
 LOGON_URL = "https://login.itu.int/my.policy"
 
@@ -58,10 +60,6 @@ _MAX_HOPS = 8
 
 #: HTTP status codes that carry a redirect.
 _REDIRECT_STATUS = {301, 302, 303, 307, 308}
-
-
-class AuthenticationError(RuntimeError):
-    """Raised when the TIES authentication could not be completed."""
 
 
 def _iter_forms(page_html: str) -> Iterator[tuple[str, dict[str, str]]]:

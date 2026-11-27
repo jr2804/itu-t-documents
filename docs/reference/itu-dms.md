@@ -65,13 +65,51 @@ meeting of a contribution is only known from the listing it appears in.
 | Summary page of a meeting | `/md/T25-SG12-261015/sum/en` |
 | Questions under study | `/net4/ITU-T/lists/loqr.aspx?Group=12&Period=18` |
 | Structure of a study group | `/net4/ITU-T/lists/sgstructure.aspx?Group=12&Period=18` |
+| Index of the study groups of a period | `/en/ITU-T/studygroups/2025-2028/Pages/default.aspx` |
 | Home page of a study group | `/en/ITU-T/studygroups/2025-2028/12/Pages/default.aspx` (zero padded: `…/05/…`) |
 
 The `meetingdoc.asp` addresses redirect to the canonical `/md/{parent}/en`.
 
 The `Period` parameter of the `net4` applications is an index of the ITU-T
 study periods: `13` is `2005-2008`, `14` is `2009-2012`, `15` is `2013-2016`,
-`16` is `2017-2020`, `17` is `2022-2024` and `18` is `2025-2028`.
+`16` is `2017-2020`, `17` is `2022-2024`, `18` is `2025-2028` and `19` is
+`2029-2032`. A period spans four years; the period that was to start in 2021
+was renamed to `2022-2024`, because the extra year was used for the session
+that had been postponed.
+
+## The structure of the study groups
+
+The study groups, the working groups and the questions under study change from
+study period to period, so they cannot be hard coded:
+
+| Period | Study groups |
+|--------|--------------|
+| 2013-2016 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
+| 2017-2020 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
+| 2022-2024 | 02, 03, 05, 09, 11, 12, 13, 15, 16, 17, 20 |
+| 2025-2028 | 02, 03, 05, 11, 12, 13, 15, 17, 20, 21 |
+
+SG9 and SG16 existed in 2022-2024 and were replaced by SG21 in 2025-2028. The
+list of a period is read from its index page, which links to the page of every
+study group.
+
+The structure page of a study group lists its groups in rows of an acronym and
+a title:
+
+| Code | Kind |
+|------|------|
+| `PLEN` | the plenary |
+| `WP1/12` | a working group |
+| `Q5/12` | a question under study |
+| `SG12RG-AFR` | a regional group |
+| `FG-AINN` | a focus group |
+| `IRG-AVQA` | an intersector rapporteur group |
+| `QSDG` | a quality study group |
+| `JCA-IMT2020/IMT2030` | a joint coordination activity |
+
+A question follows the working group it belongs to, so the page also tells
+which working group handles which question. The questions of the plenary come
+before the first working group.
 
 ### The aggregate listing of the temporary documents
 
@@ -168,6 +206,21 @@ Two things are worth knowing:
 The package implements this chain in `itu_doc_downloader.auth.ties`. The
 session cookies live in the HTTP client, so one login serves every following
 request.
+
+### The membership of the account
+
+A TIES account is valid for the whole ITU-T, but its membership covers only
+the study groups it belongs to. The login succeeds either way — the access
+policy decides about the resource after the identity provider has answered.
+
+A document outside the membership answers `401 Unauthorized` with a page that
+says *"Access is denied due to invalid credentials"*. The credentials are
+valid; the membership is not wide enough. The package reports this as an
+`AccessDeniedError` and never logs in again.
+
+The metadata of a document is public: the listings, the detail pages and the
+structure pages are read without a login, and only the file itself is
+protected.
 
 ### Where the credentials come from
 

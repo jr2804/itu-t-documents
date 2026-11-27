@@ -7,9 +7,13 @@ from pathlib import Path
 import pytest
 
 from itu_doc_downloader.api import IncompleteListingError
+from itu_doc_downloader.catalogue import CatalogueEntry
 from itu_doc_downloader.cli import commands
-from itu_doc_downloader.models.documents import MeetingId, StudyPeriod
+from itu_doc_downloader.errors import AccessDeniedError, UnknownEntityError
+from itu_doc_downloader.models.catalogue import StructureGroup, StudyGroupStructure
+from itu_doc_downloader.models.documents import MeetingId, StudyGroup, StudyPeriod
 from itu_doc_downloader.models.enums import DocType
+from itu_doc_downloader.models.questions import Question, WorkingGroup
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -22,6 +26,46 @@ class FakeMeeting:
         self.code = code
         self.place = place
         self.label = f"{place} ({code})"
+
+
+class FakeCatalogue:
+    """The catalogue of the fake API."""
+
+    def __init__(self) -> None:
+        """Create the fake catalogue."""
+        self.empty = False
+
+    def study_groups(self, period: StudyPeriod) -> list[StudyGroup]:
+        """Return the study groups of the period."""
+        if self.empty:
+            return []
+        return [StudyGroup(number=number, period=period) for number in (12, 21)]
+
+    def structure(self, study_group: int, period: StudyPeriod) -> StudyGroupStructure:
+        """Return the structure of the study group."""
+        if study_group != 12:
+            raise UnknownEntityError(f"{period.label} has no study group SG{study_group:02d}")
+        group = StudyGroup(number=study_group, period=period)
+        return StudyGroupStructure(
+            study_group=group,
+            plenary=WorkingGroup(code="PLEN", name="PLEN"),
+            working_groups=[WorkingGroup(code="WP1/12", name="WP1 12")],
+            questions=[
+                Question(
+                    number=15,
+                    study_group=study_group,
+                    title="Parametric and E-model-based planning",
+                    working_group=WorkingGroup(code="WP1/12", name="WP1 12"),
+                )
+            ],
+            other_groups=[StructureGroup(code="SG12RG-AFR", title="Regional Group for Africa", kind="regional")],
+        )
+
+    def search(self, text: str, period: StudyPeriod | None = None) -> list[CatalogueEntry]:
+        """Return the entries that mention the text."""
+        if "speech" not in text:
+            return []
+        return [CatalogueEntry(kind="question", code="Q15/12", title="speech", study_group=12, period="2025-2028")]
 
 
 class FakeStore:
@@ -38,6 +82,7 @@ class FakeApi:
         self.store = FakeStore()
         self.calls: list[tuple] = []
         self.truncated = False
+        self.catalogue = FakeCatalogue()
 
     def __enter__(self) -> FakeApi:
         return self
@@ -197,3 +242,99 @@ def test_download_command_with_an_unavailable_rendition(
 
     out = capsys.readouterr().out
     assert "is not available as PDF-E" in out
+
+
+def test_download_command_with_a_document_the_account_may_not_see(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The download command reports a document outside the membership."""
+    from itu_doc_downloader.cli import commands
+
+    class FakeApi:
+        """A stand-in for the API."""
+
+        def download(self, ref, file_format, language, output=None) -> Path:
+            """Refuse the download."""
+            raise AccessDeniedError(f"{ref.document_id} is not accessible with these credentials")
+
+        def __enter__(self) -> FakeApi:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def close(self) -> None:
+            """Close the fake API."""
+
+    monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: FakeApi())
+
+    commands.download("T25-SG13-C-0001", file_format="PDF", language="E")
+
+    out = capsys.readouterr().out
+    assert "is not accessible with these credentials" in out
+    assert "membership" in out
+
+
+# ----------------------------------------------------------------------
+# The catalogue of the ITU-T study groups
+# ----------------------------------------------------------------------
+
+
+def test_periods_command(capsys: pytest.CaptureFixture[str]) -> None:
+    """The periods command lists the study periods of the ITU-T."""
+    commands.periods()
+
+    out = capsys.readouterr().out
+    assert "2025-2028" in out
+    assert "(current)" in out
+
+
+def test_study_groups_command(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The study groups command lists the study groups of a period."""
+    commands.study_groups(study_period="2025-2028")
+
+    out = capsys.readouterr().out
+    assert "SG12" in out
+    assert "SG21" in out
+
+
+def test_structure_command(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The structure command shows the groups of a study group."""
+    commands.structure(study_group=12, study_period="2025-2028")
+
+    out = capsys.readouterr().out
+    assert "WP1/12" in out
+    assert "Q15/12" in out
+    assert "SG12RG-AFR" in out
+
+
+def test_study_groups_command_without_a_study_group(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The study groups command reports a period without study groups."""
+    fake_api.catalogue.empty = True
+
+    commands.study_groups(study_period="2025-2028")
+
+    assert "publishes no study group" in capsys.readouterr().out
+
+
+def test_structure_command_with_an_unknown_study_group(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The structure command reports a study group that does not exist."""
+    commands.structure(study_group=9, study_period="2025-2028")
+
+    assert "has no study group SG09" in capsys.readouterr().out
+
+
+def test_search_command(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The search command finds the groups that mention the text."""
+    commands.search("speech", study_period="2025-2028")
+
+    out = capsys.readouterr().out
+    assert "Q15/12" in out
+
+
+def test_search_command_without_a_match(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The search command reports that nothing matches."""
+    commands.search("nothing-at-all", study_period="2025-2028")
+
+    assert "Nothing in 2025-2028" in capsys.readouterr().out

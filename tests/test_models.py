@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from itu_doc_downloader.models.documents import DocumentFile, DocumentRef, MeetingId, StudyPeriod
+from itu_doc_downloader.models.documents import DocumentFile, DocumentRef, MeetingId, StudyGroup, StudyPeriod
 from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType, Role
 from itu_doc_downloader.models.questions import Person, Question, WorkingGroup
 
@@ -177,6 +177,62 @@ def test_document_file_uses_the_extension_of_its_url() -> None:
     )
 
     assert rendition.extension == "doc"
+
+
+def test_a_study_period_is_built_from_its_start_year() -> None:
+    """A study period is named by the year it starts in."""
+    period = StudyPeriod.from_year(2025)
+
+    assert period.label == "2025-2028"
+    assert period.code == "T25"
+
+
+def test_a_study_period_of_an_unknown_year_is_refused() -> None:
+    """A year that starts no study period is refused."""
+    with pytest.raises(ValueError, match="2021"):
+        StudyPeriod.from_year(2021)
+
+
+def test_the_year_of_a_study_period_is_found() -> None:
+    """The study period a year falls into is found."""
+    assert StudyPeriod.containing(2026).label == "2025-2028"
+    assert StudyPeriod.containing(2007).label == "2005-2008"
+
+
+def test_a_year_without_a_study_period_is_refused() -> None:
+    """A year that falls into no study period is refused."""
+    with pytest.raises(ValueError, match="2021"):
+        StudyPeriod.containing(2021)
+
+
+def test_a_study_period_that_does_not_exist_is_refused() -> None:
+    """A period the ITU-T does not know cannot be constructed."""
+    with pytest.raises(ValueError, match="2030-2033"):
+        StudyPeriod(start_year=2030, end_year=2033)
+
+
+def test_the_known_study_periods_are_listed() -> None:
+    """The catalogue of the study periods holds every period of the ITU-T."""
+    labels = [period.label for period in StudyPeriod.all()]
+
+    assert labels[0] == "2005-2008"
+    assert labels[-1] == "2029-2032"
+    assert "2025-2028" in labels
+
+
+def test_a_study_period_is_parsed_from_a_year() -> None:
+    """A study period is parsed from a label, a code or a year."""
+    assert StudyPeriod.parse("2025-2028") == StudyPeriod.from_year(2025)
+    assert StudyPeriod.parse("T25") == StudyPeriod.from_year(2025)
+    assert StudyPeriod.parse("2025") == StudyPeriod.from_year(2025)
+
+
+def test_a_study_group_carries_its_period() -> None:
+    """A study group is named by its number and its period."""
+    group = StudyGroup(number=5, period=StudyPeriod.from_year(2025))
+
+    assert group.code == "SG05"
+    assert group.label == "SG05 (2025-2028)"
 
 
 def test_temporary_document_requires_a_meeting() -> None:
