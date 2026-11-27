@@ -121,6 +121,9 @@ jobs:
       # The release runs in parallel with the continuous integration, so it
       # checks the quality of the tree itself: a release never ships what the
       # continuous integration would refuse.
+      - name: Install the project
+        run: uv sync --all-extras --all-groups
+
       - name: Ruff
         run: |
           uvx ruff check src tests
