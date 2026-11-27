@@ -15,16 +15,20 @@ tag=$(git describe --tags --abbrev=0 2>/dev/null) || {
   exit 1
 }
 version=$(printf '%s' "$tag" | sed 's/^v//')
-if ! printf '%s' "$version" | grep -Eq '^[0-9]{4}\\.[0-9]+\\.[0-9]+$'; then
-  echo "The tag '$tag' is not a CalVer tag (YYYY.MINOR.PATCH)." >&2
+if ! printf '%s' "$version" | grep -Eq '^[0-9]{4}\\.(0[1-9]|1[0-2])\\.[1-9][0-9]*$'; then
+  echo "The tag '$tag' is not a CalVer tag (YYYY.MM.N)." >&2
   exit 1
 fi
+# PEP 440 does not allow a leading zero in the release segment, so the
+# published version drops the zero of the month: the tag "2027.01.1" publishes
+# the version "2027.1.1".
+published=$(uv run --no-project --python 3.13 python .github/scripts/calver.py publish "$version")
 resolved=$(uvx uv-dynamic-versioning)
-if [ "$resolved" != "$version" ]; then
-  echo "The build resolves the version '$resolved', the tag says '$version'." >&2
+if [ "$resolved" != "$published" ]; then
+  echo "The build resolves the version '$resolved', the tag '$tag' says '$published'." >&2
   exit 1
 fi
-echo "The tag '$tag' publishes the version $version."
+echo "The tag '$tag' publishes the version $published."
 uv build
 ls -l dist
 """

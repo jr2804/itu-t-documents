@@ -44,6 +44,7 @@ secretspec = ["secretspec>=0.21.1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/itu_t_documents"]
+exclude = ["/src/itu_t_documents/mcp/AGENTS.md"]
 
 [tool.hatch.build.targets.sdist]
 # The distribution carries the package, its tests and its documentation. The
@@ -68,8 +69,10 @@ exclude = [
     "/htmlcov/*",
     "/scripts/*",
     "/site/*",
+    "/tests/test-cache/*",
     "/AGENTS.md",
     "/docs/AGENTS.md",
+    "/src/itu_t_documents/mcp/AGENTS.md",
     "/TOOLS.md",
     "/.coverage",
     "/coverage.xml",
@@ -90,22 +93,37 @@ build-backend = "hatchling.build"
 source = "uv-dynamic-versioning"
 
 [tool.uv-dynamic-versioning]
-# CalVer: YYYY.MINOR.PATCH. The tag carries an optional "v" prefix, the
-# published version never does. See docs/release.md.
-pattern = '^v?(?P<base>\d{4}\.\d+\.\d+)$'
+# CalVer: YYYY.MM.N. The tag carries an optional "v" prefix, the published
+# version never does. See docs/release.md.
+pattern = '^v?(?P<base>\d{4}\.(0[1-9]|1[0-2])\.[1-9]\d*)$'
 # A source tree without a usable VCS (an exported tarball, a vendored copy).
 fallback-version = "0.0.0.dev0"
 # An exact tag yields the bare version. Everything else yields a PEP 440
 # development version: "<base>.dev<distance>+<commit>" for a commit that
-# follows a tag, "<year>.0.0.dev<distance>+<commit>" for a tree without any
-# CalVer tag, and a ".dirty" local segment for an unclean working tree.
+# follows a tag, "<year>.<month>.0.dev<distance>+<commit>" for a tree without
+# any CalVer tag, and a ".dirty" local segment for an unclean working tree.
+# The timestamp of the commit is a "YYYYMMDDHHMMSS" string, so the year is
+# its first four characters and the month its next two.
+#
+# PEP 440 does not allow a leading zero in the release segment, so the
+# published version drops the zero of the month: the tag "2027.01.1" publishes
+# the version "2027.1.1". The tag keeps the zero, because it is the spelling
+# a human reads.
 format-jinja = '''
 {%- if base == "0.0.0" -%}
-{{ (timestamp or "0")[:4] }}.0.0.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
-{%- elif distance == 0 and not dirty -%}
-{{ base }}
+{%- if timestamp -%}
+{{ timestamp[:4] }}.{{ timestamp[4:6] | int }}.0.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
 {%- else -%}
-{{ base }}.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
+0.0.0.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
+{%- endif -%}
+{%- else -%}
+{%- set parts = base.split(".") -%}
+{%- set published = parts[0] ~ "." ~ (parts[1] | int) ~ "." ~ parts[2] -%}
+{%- if distance == 0 and not dirty -%}
+{{ published }}
+{%- else -%}
+{{ published }}.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
+{%- endif -%}
 {%- endif -%}
 '''
 

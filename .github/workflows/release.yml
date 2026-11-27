@@ -2,10 +2,15 @@ name: Release
 
 on:
   push:
+    branches:
+      # Every push to the main branch is released: the job "version" tags the
+      # commit with the next CalVer version and the rest of the workflow
+      # builds, tests and publishes it.
+      - main
     tags:
-      # A CalVer tag: "2026.1.0". The "v" prefix is optional and accepted, the
-      # published version never carries it. The pattern is deliberately broad,
-      # the "verify" job rejects everything that is not a CalVer tag.
+      # A CalVer tag: "2026.11.1". The "v" prefix is optional and accepted,
+      # the published version never carries it. The pattern is deliberately
+      # broad, the "version" job rejects everything that is not a CalVer tag.
       - "[0-9]*"
       - "v[0-9]*"
 
@@ -13,50 +18,105 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify the tag
+  version:
+    name: Determine the version
     runs-on: ubuntu-latest
+    permissions:
+      # The automatic tag is pushed with the token of the workflow. A push
+      # with that token does not trigger a workflow, so the release of the
+      # automatic tag is this run and not another one.
+      contents: write
     outputs:
-      version: ${{ steps.tag.outputs.version }}
+      version: ${{ steps.publish.outputs.version }}
+      tag: ${{ steps.publish.outputs.tag }}
+      release: ${{ steps.publish.outputs.release }}
     steps:
       - uses: actions/checkout@v7
         with:
           # The version comes from the git tags, the whole history is needed.
           fetch-depth: 0
 
-      - name: Check that the tag is a CalVer tag
-        id: tag
+      - name: The version of a pushed tag
+        id: pushed
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           version="${GITHUB_REF_NAME#v}"
-          if [[ ! "$version" =~ ^[0-9]{4}\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::The tag '$GITHUB_REF_NAME' is not a CalVer tag. Expected 'YYYY.MINOR.PATCH', for example '2026.1.0'."
+          if [[ ! "$version" =~ ^[0-9]{4}\.(0[1-9]|1[0-2])\.[1-9][0-9]*$ ]]; then
+            echo "::error::The tag '$GITHUB_REF_NAME' is not a CalVer tag. Expected 'YYYY.MM.N', for example '2026.11.1'."
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
 
-      - uses: astral-sh/setup-uv@v10
+      - name: The version of the next release
+        id: next
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -eu
+          # The identity of the tag, the runner has none of its own.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # A commit that carries a tag already is released by that tag: the
+          # push of the tag runs this workflow on its own.
+          tagged=$(git tag --points-at HEAD | grep -E '^(v)?[0-9]{4}\.(0[1-9]|1[0-2])\.[1-9][0-9]*$' | head -1 || true)
+          if [ -n "$tagged" ]; then
+            echo "The commit is tagged '$tagged' already, that tag has its own release."
+            echo "tag=$tagged" >> "$GITHUB_OUTPUT"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A concurrent run may have taken the version in the meantime, so
+          # the version is computed again and the tag is pushed again.
+          for attempt in 1 2 3 4 5; do
+            git fetch --tags --force --quiet origin
+            version=$(python3 .github/scripts/calver.py next --date "$(date -u +%Y-%m-%d)" --tags $(git tag --list))
+            git tag -a -f "$version" -m "Release $version"
+            if git push origin "refs/tags/$version"; then
+              echo "The tag '$version' points at $(git rev-parse --short HEAD)."
+              echo "tag=$version" >> "$GITHUB_OUTPUT"
+              echo "release=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "The tag '$version' exists already, the next version is computed."
+          done
+          echo "::error::The tag could not be pushed after five attempts." >&2
+          exit 1
+
+      - name: The published version of the tag
+        id: publish
+        run: |
+          tag="${{ steps.pushed.outputs.tag || steps.next.outputs.tag }}"
+          version=$(python3 .github/scripts/calver.py publish "$tag")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release=${{ steps.next.outputs.release || 'true' }}" >> "$GITHUB_OUTPUT"
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: "3.13"
 
       - name: Check the version the build backend resolves
+        if: steps.publish.outputs.release == 'true'
         run: |
           resolved="$(uvx uv-dynamic-versioning)"
-          if [ "$resolved" != "${{ steps.tag.outputs.version }}" ]; then
-            echo "::error::The build backend resolves the version '$resolved', the tag says '${{ steps.tag.outputs.version }}'."
+          if [ "$resolved" != "${{ steps.publish.outputs.version }}" ]; then
+            echo "::error::The build backend resolves the version '$resolved', the tag says '${{ steps.publish.outputs.version }}'."
             exit 1
           fi
           echo "The tag resolves to the version $resolved."
 
   build:
     name: Build the sdist and the wheel
-    needs: verify
+    needs: version
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: "3.13"
 
@@ -69,12 +129,12 @@ jobs:
       - name: Check the artifact names
         run: |
           ls -l dist
-          if ! ls dist/*"${{ needs.verify.outputs.version }}"*.tar.gz > /dev/null; then
-            echo "::error::No sdist for the version ${{ needs.verify.outputs.version }}."
+          if ! ls dist/*"${{ needs.version.outputs.version }}"*.tar.gz > /dev/null; then
+            echo "::error::No sdist for the version ${{ needs.version.outputs.version }}."
             exit 1
           fi
-          if ! ls dist/*"${{ needs.verify.outputs.version }}"*.whl > /dev/null; then
-            echo "::error::No wheel for the version ${{ needs.verify.outputs.version }}."
+          if ! ls dist/*"${{ needs.version.outputs.version }}"*.whl > /dev/null; then
+            echo "::error::No wheel for the version ${{ needs.version.outputs.version }}."
             exit 1
           fi
 
@@ -100,7 +160,7 @@ jobs:
           name: dist
           path: dist/
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -121,12 +181,11 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: [verify, build, test]
+    needs: [version, build, test]
     runs-on: ubuntu-latest
-    # The environment of the publisher on PyPI. GitHub creates it on the
-    # first run; give it required reviewers to turn the publication into an
-    # approval gate.
-    environment: pypi
+    # The publisher on PyPI has no environment, so the job must not run in
+    # one either: PyPI compares the environment of the job with the
+    # environment of the publisher.
     permissions:
       # Trusted publishing: PyPI verifies the identity of this workflow with
       # the OIDC token of the job, no API token is involved.
@@ -138,14 +197,14 @@ jobs:
           path: dist/
 
       - name: Publish
-        uses: pypa/gh-action-pypi-publish@v1
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
           verbose: true
 
   github-release:
     name: Create the GitHub release
-    needs: [publish, verify]
+    needs: [publish, version]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -159,15 +218,15 @@ jobs:
           name: dist
           path: dist/
 
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: "3.13"
 
       - name: Generate the changelog
         run: |
-          python .github/scripts/release_notes.py \
-            --tag "$GITHUB_REF_NAME" \
-            --version "${{ needs.verify.outputs.version }}" \
+          python3 .github/scripts/release_notes.py \
+            --tag "${{ needs.version.outputs.tag }}" \
+            --version "${{ needs.version.outputs.version }}" \
             > release-notes.md
           cat release-notes.md
 
@@ -175,8 +234,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "${{ needs.verify.outputs.version }}" \
+          gh release create "${{ needs.version.outputs.tag }}" \
+            --title "${{ needs.version.outputs.version }}" \
             --notes-file release-notes.md \
             --verify-tag \
             dist/*

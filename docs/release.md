@@ -4,30 +4,42 @@ title: Releasing
 
 ## The version scheme
 
-The project uses [CalVer](https://calver.org/): `YYYY.MINOR.PATCH`, for example `2026.1.0`.
+The project uses [CalVer](https://calver.org/): `YYYY.MM.N`, for example
+`2026.11.1`.
 
 | Component | Meaning                                                                    |
 | --------- | -------------------------------------------------------------------------- |
 | `YYYY`    | The year of the release. The year is the major component, so the versions sort by release date. |
-| `MINOR`   | The number of the release within that year. The first release of a year is `YYYY.1.0`. |
-| `PATCH`   | A fix that does not warrant a new minor release. It stays `0` for a regular release. |
+| `MM`      | The month of the release, two digits, `01` to `12`.                          |
+| `N`       | The number of the release within that month. It starts at `1` and counts up; a new month starts at `1` again. |
 
-The alternatives were a plain date (`YYYY.MM.DD`) and `YY.MM.MICRO`:
+The alternatives were a plain date (`YYYY.MM.DD`) and a counter per year
+(`YYYY.MINOR.PATCH`):
 
-- A plain date forbids a second release on the same day and encodes the month
-  and the day, which the year already orders.
-- `YY.MM.MICRO` is ambiguous across centuries and needs a micro counter that
-  has no meaning for a project of this size.
-- `YYYY.MINOR.PATCH` says when the release happened and how many releases
-  happened that year. The year is the only component a user has to remember.
+- A plain date forbids a second release on the same day and encodes the day,
+  which nobody needs.
+- `YYYY.MINOR.PATCH` counts the releases of a year. That number says nothing
+  about when a release happened, and a patch release has no version of its
+  own.
+- `YYYY.MM.N` says when the release happened and how many releases happened in
+  that month. The first release of a month is `YYYY.MM.1`.
 
-The version is PEP 440 conformant, so `2026.1.0` is a valid release version
+The version is PEP 440 conformant, so `2026.11.1` is a valid release version
 and sorts correctly for `pip`.
 
 ### The tag and the published version
 
-The tag of a release is the version without a prefix: `2026.1.0`. A `v` prefix
-is accepted as well (`v2026.1.0`), the published version never carries it.
+The tag of a release is the version without a prefix: `2026.11.1`. A `v` prefix
+is accepted as well (`v2026.11.1`), the published version never carries it.
+The tag of a push to `main` is created by the workflow, see
+[Every push is a release](#every-push-is-a-release).
+
+PEP 440 does not allow a leading zero in the release segment, so the published
+version drops the zero of the month: the tag `2027.01.1` publishes the version
+`2027.1.1`. The tag keeps the zero, because `2027.01.1` is the spelling a human
+reads and `2027.1.1` looks like a date. The build backend drops the zero, so
+the name of the artifact, the metadata and the release on PyPI all carry the
+same version.
 
 The version is never written into `pyproject.toml`. The build backend
 ([uv-dynamic-versioning](https://pypi.org/project/uv-dynamic-versioning/))
@@ -37,33 +49,66 @@ reads it from the git tag, so the tag is the single source of truth.
 
 | State of the repository                        | Resolved version               |
 | ---------------------------------------------- | ------------------------------ |
-| `HEAD` carries the tag `2026.1.0`             | `2026.1.0`                     |
-| `HEAD` is three commits after the tag         | `2026.1.0.dev3+g1bc24fd`       |
-| `HEAD` carries the tag, the tree is dirty      | `2026.1.0.dev0+g1bc24fd.dirty` |
-| The repository holds no CalVer tag             | `2026.0.0.dev9+g1bc24fd`       |
+| `HEAD` carries the tag `2026.11.1`            | `2026.11.1`                    |
+| `HEAD` carries the tag `2027.01.1`            | `2027.1.1`                     |
+| `HEAD` is three commits after the tag         | `2026.11.1.dev3+g1bc24fd`      |
+| `HEAD` carries the tag, the tree is dirty      | `2026.11.1.dev0+g1bc24fd.dirty` |
+| The repository holds no CalVer tag             | `2026.11.0.dev9+g1bc24fd`      |
 | No git at all, for example an exported tarball | `0.0.0.dev0`                   |
 
-Only the first row is a release. Every other row is a development version that
-a package index must never receive. Check what a build resolves with:
+Only the first two rows are a release. Every other row is a development
+version that a package index must never receive. The counter of a development
+version without a tag is `0`, because there is no release to count. Check what
+a build resolves with:
 
 ```bash
 mise version      # or: uvx uv-dynamic-versioning
 ```
 
-## Cutting a release
+## Every push is a release
+
+Every push to `main` is released. The `version` job of the release workflow
+computes the next version, tags the commit and pushes the tag; the rest of
+the workflow builds, tests and publishes that version.
+
+The version of a push is the next CalVer version: the counter of the month
+counts the releases of that month and starts at `1` in every month. The first
+push of November 2026 is released as `2026.11.1`, the second one as
+`2026.11.2`, and the first push of December 2026 as `2026.12.1`.
+
+The tag is pushed with the token of the workflow. GitHub does not run a
+workflow for a push that its own token made, so the release of the automatic
+tag is the run that created it — there is no second run and no double
+release.
+
+A commit that carries a tag already is skipped: a tag that was pushed by
+hand has its own release. To retry a release that failed, re-run the failed
+jobs of the run, not the whole run — the version of a whole run that is
+repeated is the next version, not the one that failed.
+
+The version of a push can be computed locally:
+
+```bash
+python .github/scripts/calver.py next --tags $(git tag --list)
+```
+
+## Cutting a release by hand
+
+A release can also be cut by hand, for example when a version has to be
+skipped or the counter has to be set to a certain number.
 
 1. Make sure the `main` branch is green and that you have pulled the
    changes you want to release.
-2. Tag the release. The tag is the version, the minor component counts the
-   releases of the year.
+2. Tag the release. The tag is the version, the counter counts the releases
+   of the month.
 3. Push the tag. The workflow takes over from there.
 
 ```bash
 git switch main
 git pull --rebase
 git status --short          # must be empty, a dirty tree is not a release
-git tag 2026.1.0
-git push origin 2026.1.0
+git tag 2026.11.1
+git push origin 2026.11.1
 ```
 
 Do not bump a version in `pyproject.toml` and do not edit the changelog of the
@@ -71,7 +116,7 @@ release — the workflow generates the changelog from the commits between the
 previous tag and the new one.
 
 To undo a release that has not been published yet, delete the tag on the
-remote (`git push --delete origin 2026.1.0`) and tag again. A version that is
+remote (`git push --delete origin 2026.11.1`) and tag again. A version that is
 already on PyPI cannot be replaced.
 
 ### The local dry run
@@ -86,11 +131,12 @@ mise build        # build the sdist and the wheel into dist/
 
 ## What the release workflow does
 
-`.github/workflows/release.yml` runs when a tag is pushed.
+`.github/workflows/release.yml` runs on every push to `main` and on every
+pushed tag.
 
 | Job             | What it does                                                                                                        |
 | --------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `verify`        | Rejects a tag that is not a CalVer tag and checks that the build backend resolves the version of the tag.          |
+| `version`       | Determines the version: the version of a pushed tag, or the next version and the tag of a push to `main`.            |
 | `build`         | Builds the sdist and the wheel with `uv build` and checks the names of the artifacts.                              |
 | `test`          | Installs the built wheel on CPython 3.13, 3.14 and the free-threaded 3.14t and runs the test suite against it.      |
 | `publish`       | Publishes the sdist and the wheel to PyPI with trusted publishing.                                                  |
@@ -104,8 +150,8 @@ interpreters. The workflow stops at the first failing job.
 The package is pure Python, so the wheel is a single `py3-none-any` wheel:
 
 ```text
-itu_t_documents-2026.1.0-py3-none-any.whl
-itu_t_documents-2026.1.0.tar.gz
+itu_t_documents-2026.11.1-py3-none-any.whl
+itu_t_documents-2026.11.1.tar.gz
 ```
 
 A `py3-none-any` wheel is valid for every interpreter the project supports,
@@ -155,9 +201,13 @@ upload creates the project.
    - **Owner**: `jr2804`
    - **Repository**: `itu-t-documents`
    - **Workflow filename**: `release.yml`
-   - **Environment**: `pypi`
+   - **Environment**: leave it empty
 3. Save it. The publisher stays *pending* until the first upload; that upload
    creates the project and turns the publisher into a normal one.
+
+The environment of the publisher and the environment of the job that uploads
+have to be the same. An empty environment means that the workflow must not
+run in one, so the `publish` job of the workflow has no `environment`.
 
 The name is reserved, but a pending publisher does not reserve it: if
 somebody else registers `itu-t-documents` before the first upload, the
@@ -173,10 +223,8 @@ Once the project exists, its publisher is managed on the project page under
 - The workflow asks for the `id-token: write` permission in the `publish` job
   and for `contents: write` in the `github-release` job. Both are granted by
   the workflow file, so no repository setting has to be changed.
-- The `publish` job runs in the environment `pypi`, which is the environment
-  of the publisher on PyPI. GitHub creates the environment on the first run.
-  Give it required reviewers in the repository settings to turn the
-  publication into an approval gate.
+- The `publish` job runs without a GitHub environment, because the publisher
+  on PyPI has none.
 - Nothing else has to be configured: the actions, the Python interpreter and
   the tools are all fetched by the workflow itself.
 

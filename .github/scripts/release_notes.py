@@ -6,7 +6,7 @@ conventional commit. Commits without a conventional prefix are listed under
 "Other changes".
 
 Usage:
-    python .github/scripts/release_notes.py --tag 2026.1.0 --version 2026.1.0
+    python .github/scripts/release_notes.py --tag 2026.11.1 --version 2026.11.1
 """
 
 from __future__ import annotations
@@ -130,8 +130,8 @@ def render(tag: str, version: str, previous: str | None, entries: Sequence[tuple
 def main() -> None:
     """Print the changelog of a release."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", required=True, help="The tag of the release, for example 2026.1.0")
-    parser.add_argument("--version", required=True, help="The published version, for example 2026.1.0")
+    parser.add_argument("--tag", required=True, help="The tag of the release, for example 2026.11.1")
+    parser.add_argument("--version", required=True, help="The published version, for example 2026.11.1")
     arguments = parser.parse_args()
 
     previous = previous_tag(arguments.tag)

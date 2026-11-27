@@ -5,9 +5,14 @@ build/
 dist/
 wheels/
 *.egg-info
-.coverage
+.coverage*
 coverage.xml
 htmlcov/
+
+# Test and linter caches
+/tests/test-cache/
+.ruff_cache/
+.rumdl_cache/
 
 # Documentation build output (zensical / mkdocs)
 site/
