@@ -45,6 +45,41 @@ secretspec = ["secretspec>=0.21.1"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/itu_t_documents"]
 
+[tool.hatch.build.targets.sdist]
+# The distribution carries the package, its tests and its documentation. The
+# development internals are not part of a release: the agent contracts, the
+# issue tracker with its database, the continuous integration, the tool
+# configuration and the artifacts of the linters.
+#
+# The patterns of the directories end in "/*", because a pattern without it
+# only matches the directory itself and not the files below it. The list is
+# explicit on purpose: the exclusion of the version control is not enough,
+# a pattern with a trailing slash does not match a file path.
+exclude = [
+    "/.agents/*",
+    "/.beads/*",
+    "/.cache/*",
+    "/.config/*",
+    "/.cursor/*",
+    "/.github/*",
+    "/.ruff_cache/*",
+    "/.rumdl_cache/*",
+    "/.venv/*",
+    "/htmlcov/*",
+    "/scripts/*",
+    "/site/*",
+    "/AGENTS.md",
+    "/docs/AGENTS.md",
+    "/TOOLS.md",
+    "/.coverage",
+    "/coverage.xml",
+    "/ruff.toml",
+    "/ty.toml",
+    "/zensical.toml",
+    "/.copier-answers.yml",
+    "/.pre-commit-config.yaml",
+]
+
 [build-system]
 # 0.8 is the first release that knows the "format-jinja" option, an older
 # plugin would silently ignore it.

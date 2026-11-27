@@ -143,17 +143,28 @@ The publish step uses [trusted publishing](https://docs.pypi.org/trusted-publish
 PyPI verifies the identity of the workflow with the OIDC token of the job, no
 API token is involved.
 
-1. Create the project on [PyPI](https://pypi.org/manage/account/publishing/).
-   The name `itu-t-documents` is reserved — create the project with it.
-2. Open the project, go to **Publishing** and add a **GitHub** publisher.
-3. Fill in the publisher:
+The project does not exist on PyPI yet, so the publisher is a **pending
+publisher**. It is created on the account, not on a project, and the first
+upload creates the project.
+
+1. Open the **Publishing** page of the PyPI account,
+   <https://pypi.org/manage/account/publishing/>, and add a **GitHub
+   Actions** publisher.
+2. Fill in the pending publisher:
+   - **PyPI project name**: `itu-t-documents`
    - **Owner**: `jr2804`
-   - **Repository name**: `itu-t-documents`
-   - **Workflow name**: `release.yml`
-   - **Environment**: leave it empty. Fill it in only if you add an
-     environment to the workflow and want the publisher to be bound to it.
-4. Save the publisher. The first publication can take a few minutes, PyPI
-   propagates the new publisher before it accepts the upload.
+   - **Repository**: `itu-t-documents`
+   - **Workflow filename**: `release.yml`
+   - **Environment**: `pypi`
+3. Save it. The publisher stays *pending* until the first upload; that upload
+   creates the project and turns the publisher into a normal one.
+
+The name is reserved, but a pending publisher does not reserve it: if
+somebody else registers `itu-t-documents` before the first upload, the
+pending publisher is invalidated and has to be created again.
+
+Once the project exists, its publisher is managed on the project page under
+**Publishing**.
 
 ### GitHub
 
@@ -162,8 +173,12 @@ API token is involved.
 - The workflow asks for the `id-token: write` permission in the `publish` job
   and for `contents: write` in the `github-release` job. Both are granted by
   the workflow file, so no repository setting has to be changed.
-- The `test` job of the release workflow and the `test` job of the continuous
-  integration need no setting either.
+- The `publish` job runs in the environment `pypi`, which is the environment
+  of the publisher on PyPI. GitHub creates the environment on the first run.
+  Give it required reviewers in the repository settings to turn the
+  publication into an approval gate.
+- Nothing else has to be configured: the actions, the Python interpreter and
+  the tools are all fetched by the workflow itself.
 
 ### The token-based fallback
 

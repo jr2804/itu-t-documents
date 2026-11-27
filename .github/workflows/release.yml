@@ -123,6 +123,10 @@ jobs:
     name: Publish to PyPI
     needs: [verify, build, test]
     runs-on: ubuntu-latest
+    # The environment of the publisher on PyPI. GitHub creates it on the
+    # first run; give it required reviewers to turn the publication into an
+    # approval gate.
+    environment: pypi
     permissions:
       # Trusted publishing: PyPI verifies the identity of this workflow with
       # the OIDC token of the job, no API token is involved.
