@@ -3,18 +3,16 @@
 The functions read the local database only; the network is not contacted.
 :class:`DocumentRecord` is a stored document with the sources and the
 questions it is linked to, :class:`SourceCount` the result of a count per
-source.
+source. Both read models live in :mod:`itu_t_documents.storage.records`.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date
-
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from itu_t_documents.models.enums import DocType
 from itu_t_documents.storage.database import MetadataStore
+from itu_t_documents.storage.records import DocumentRecord, SourceCount, to_record
 from itu_t_documents.storage.tables import (
     DocumentQuestionRow,
     DocumentRow,
@@ -24,35 +22,7 @@ from itu_t_documents.storage.tables import (
     StudyGroupRow,
 )
 
-
-@dataclass(frozen=True)
-class DocumentRecord:
-    """A document as stored in the metadata database."""
-
-    document_id: str
-    doc_type: DocType
-    number: int
-    subtype: str | None
-    title: str
-    sources: tuple[str, ...] = ()
-    questions: tuple[int, ...] = ()
-    posted: date | None = None
-    revision: int | None = None
-    study_group: int = 0
-    study_period: str = ""
-    meeting_code: str | None = None
-    detail_url: str = ""
-
-
-@dataclass(frozen=True)
-class SourceCount:
-    """The number of documents a single source submitted."""
-
-    source: str
-    count: int
-    contributions: int = 0
-    temporary_documents: int = 0
-    meetings: tuple[str, ...] = ()
+__all__ = ["DocumentRecord", "SourceCount", "find_documents", "to_record", "top_sources"]
 
 
 def find_documents(
@@ -84,6 +54,8 @@ def find_documents(
     Returns:
         The matching documents, newest number first.
     """
+    # SQLModel declares the columns of its tables with plain Python types, so
+    # the SQLAlchemy helpers on the columns are invisible to the type checker.
     with store.session() as session:
         statement = select(DocumentRow)
         if study_group is not None or study_period is not None:
@@ -95,12 +67,13 @@ def find_documents(
         if doc_type is not None:
             statement = statement.where(DocumentRow.doc_type == doc_type.value)
         if doc_types is not None:
-            # SQLModel declares its table columns with plain Python types, so the
-            # SQLAlchemy helpers on the columns are invisible to the type checker.
             values = [doc_type.value for doc_type in doc_types]
             statement = statement.where(DocumentRow.doc_type.in_(values))  # ty: ignore[missing-attribute]
         if meeting is not None:
-            statement = statement.join(MeetingRow).where(MeetingRow.code == meeting)
+            # The meeting is joined through the document, not through the
+            # study group: a study group has many meetings, and the join
+            # would otherwise match every document of the study group.
+            statement = statement.join(MeetingRow, DocumentRow.meeting_id == MeetingRow.id).where(MeetingRow.code == meeting)  # ty: ignore[invalid-argument-type]
         if question is not None:
             statement = statement.join(DocumentQuestionRow).join(QuestionRow).where(QuestionRow.number == question)
         if source is not None:
@@ -168,40 +141,3 @@ def top_sources(
 
     ordered = sorted(counts.values(), key=lambda item: (-item.count, item.source))
     return ordered[:limit]
-
-
-def to_record(session: Session, row: DocumentRow) -> DocumentRecord:
-    """Build a :class:`DocumentRecord` from a database row.
-
-    Args:
-        session: The session to read the sources, the questions, the study
-            group and the meeting of the document from.
-        row: The row of the document.
-
-    Returns:
-        The record of the document.
-    """
-    sources = tuple(source.source for source in session.exec(select(DocumentSourceRow).where(DocumentSourceRow.document_id == row.id)).all())
-    questions = tuple(
-        question.number for question in session.exec(select(QuestionRow).join(DocumentQuestionRow).where(DocumentQuestionRow.document_id == row.id)).all()
-    )
-    group = session.get(StudyGroupRow, row.study_group_id)
-    meeting_code = None
-    if row.meeting_id is not None:
-        meeting = session.get(MeetingRow, row.meeting_id)
-        meeting_code = meeting.code if meeting is not None else None
-    return DocumentRecord(
-        document_id=row.document_id,
-        doc_type=DocType(row.doc_type),
-        number=row.number,
-        subtype=row.subtype,
-        title=row.title,
-        sources=sources,
-        questions=questions,
-        posted=row.posted,
-        revision=row.revision,
-        study_group=group.number if group is not None else 0,
-        study_period=group.period_label if group is not None else "",
-        meeting_code=meeting_code,
-        detail_url=row.detail_url,
-    )

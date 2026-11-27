@@ -293,17 +293,13 @@ def test_configuration_file_wins_over_secretspec(monkeypatch: pytest.MonkeyPatch
         '[credentials]\nusername = "file@example.org"\npassword = "file-secret"\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        "itu_t_documents.config.settings.default_config_file",
-        lambda: config_dir / CONFIG_FILE_NAME,
-    )
     _install_fake_secretspec(
         monkeypatch,
         _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": "spec-secret"}),
         {},
     )
 
-    settings = Settings()
+    settings = Settings(config_dir=config_dir)
 
     assert settings.ties_username == "file@example.org"
     assert settings.ties_password is not None

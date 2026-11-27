@@ -32,8 +32,8 @@ class FileCache:
                 environment and configuration file settings.
         """
         self.settings = settings or Settings()
-        self.root = self.settings.resolved_cache_dir / FILES_DIRECTORY
-        self.root.mkdir(parents=True, exist_ok=True)
+        self.root_dir = self.settings.resolved_cache_dir / FILES_DIRECTORY
+        self.root_dir.mkdir(parents=True, exist_ok=True)
 
     def path_for(
         self,
@@ -59,7 +59,7 @@ class FileCache:
         """
         suffix = "" if revision is None else f"-R{revision}"
         name = f"{file_format.value}-{language.value}{suffix}.{extension or default_extension(file_format)}"
-        return self.root / ref.document_id / name
+        return self.root_dir / ref.document_id / name
 
     def find(self, ref: DocumentRef, file_format: DocFormat, language: DocLanguage) -> Path | None:
         """Return the cached rendition of a document, if there is one.
@@ -75,11 +75,11 @@ class FileCache:
             The path of the cached rendition, or ``None`` when nothing is
             cached for it.
         """
-        directory = self.root / ref.document_id
-        if not directory.is_dir():
+        document_dir = self.root_dir / ref.document_id
+        if not document_dir.is_dir():
             return None
         base = f"{file_format.value}-{language.value}"
-        matches = [*directory.glob(f"{base}.*"), *directory.glob(f"{base}-R*.*")]
+        matches = [*document_dir.glob(f"{base}.*"), *document_dir.glob(f"{base}-R*.*")]
         if not matches:
             return None
         return sorted(matches, key=_revision_rank)[0]
@@ -120,10 +120,10 @@ class FileCache:
         Returns:
             The path the rendition was written to.
         """
-        path = self.path_for(ref, file_format, language, revision=revision, extension=extension)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
-        return path
+        path_file = self.path_for(ref, file_format, language, revision=revision, extension=extension)
+        path_file.parent.mkdir(parents=True, exist_ok=True)
+        path_file.write_bytes(content)
+        return path_file
 
     def load(self, ref: DocumentRef, file_format: DocFormat, language: DocLanguage) -> bytes | None:
         """Read a rendition from the cache.
@@ -136,15 +136,15 @@ class FileCache:
         Returns:
             The bytes of the document, or ``None`` when it is not cached.
         """
-        path = self.find(ref, file_format, language)
-        if path is None:
+        path_file = self.find(ref, file_format, language)
+        if path_file is None:
             return None
-        return path.read_bytes()
+        return path_file.read_bytes()
 
 
-def _revision_rank(path: Path) -> tuple[int, int]:
+def _revision_rank(path_file: Path) -> tuple[int, int]:
     """Rank a cached rendition so that the original comes before a revision."""
-    match = _REVISION_RE.search(path.name)
+    match = _REVISION_RE.search(path_file.name)
     if match is None:
         return (0, 0)
     return (1, int(match["revision"]))

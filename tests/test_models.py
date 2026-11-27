@@ -12,6 +12,7 @@ from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, Role
 from itu_t_documents.models.metadata import DocumentFile
 from itu_t_documents.models.questions import Person, Question, WorkingGroup
 from itu_t_documents.models.study_periods import StudyPeriod
+from itu_t_documents.urls import detail_url_for
 
 
 def test_study_period_from_label() -> None:
@@ -303,3 +304,82 @@ def test_unknown_format_and_language_codes() -> None:
     assert DocFormat.parse("XYZ") is None
     assert DocLanguage.parse("Q") is None
     assert DocFormat.parse("msw") is DocFormat.WORD
+
+
+PERIOD = StudyPeriod(start_year=2025, end_year=2028)
+
+
+def test_meeting_id_rejects_an_invalid_code() -> None:
+    """A meeting code that is not a date is rejected."""
+    with pytest.raises(ValueError):
+        MeetingId.from_code("26101")
+
+
+def test_meeting_id_label() -> None:
+    """The label of a meeting is its start date."""
+    assert MeetingId.from_code("261015").label == "2026-10-15"
+
+
+def test_document_ref_detail_url() -> None:
+    """The detail page of a document is addressed by its identifier."""
+    ref = DocumentRef.parse("T25-SG12-C-0192")
+
+    assert ref.detail_url() == "https://www.itu.int/md/meetingdoc.asp?lang=en&parent=T25-SG12-C-0192"
+    assert detail_url_for(ref) == ref.detail_url()
+
+
+def test_document_ref_visibility() -> None:
+    """Every document type has an access level."""
+    assert DocumentRef.parse("T25-SG12-C-0192").visibility.value == "ties"
+    assert DocumentRef.parse("T25-SG12-COL-0001").visibility.value == "pub"
+    assert DocumentRef.parse("T25-SG12-R-0001").visibility.value == "ties"
+    assert DocumentRef.parse("T25-SG12-261015-TD-GEN-0520").visibility.value == "inf"
+
+
+def test_document_file_extension() -> None:
+    """The extension of a rendition follows its format."""
+    assert DocumentFile(format_code="MSW", language_code="E", url="u").extension == "docx"
+    assert DocumentFile(format_code="PDF", language_code="E", url="u").extension == "pdf"
+    assert DocumentFile(format_code="ZIP", language_code="E", url="u").extension == "zip"
+    assert DocumentFile(format_code="HTM", language_code="E", url="u").extension == "htm"
+
+
+def test_study_period_rejects_a_reversed_period() -> None:
+    """A period that ends before it starts is rejected."""
+    with pytest.raises(ValueError):
+        StudyPeriod(start_year=2028, end_year=2025)
+
+
+def test_document_ref_of_a_temporary_document_without_a_subtype() -> None:
+    """A temporary document without a sub-type uses the general one."""
+    ref = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=1,
+        meeting=MeetingId.from_code("261015"),
+    )
+
+    assert ref.document_id == "T25-SG12-261015-TD-GEN-0001"
+
+
+def test_document_ref_of_a_temporary_document_without_a_meeting() -> None:
+    """A temporary document without a meeting has no download URL."""
+    ref = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=1,
+    )
+
+    with pytest.raises(ValueError):
+        _ = ref.download_url(DocFormat.PDF, DocLanguage.ENGLISH)
+
+
+def test_document_file_without_a_known_format() -> None:
+    """A file with an unknown format code has no extension."""
+    rendition = DocumentFile(format_code="XYZ", language_code="Q", url="https://example.org")
+
+    assert rendition.file_format is None
+    assert rendition.language is None
+    assert rendition.extension == ""

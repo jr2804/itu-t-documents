@@ -12,8 +12,9 @@ Access the documents of ITU-T study group meetings.
 
 Documents are identified by study period, study group, meeting, document type
 and number. The metadata of every meeting that was visited is kept in a local
-SQLite database, so repeated questions are answered without contacting
-www.itu.int again. Downloading a document needs TIES credentials.
+SQLite database. A question about a study group or meeting that is already
+stored is answered without contacting www.itu.int; only missing data is
+synchronised first. Downloading a document needs TIES credentials.
 """
 
 #: The MCP server instance.

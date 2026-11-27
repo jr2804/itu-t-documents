@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic.fields import FieldInfo
 
 from itu_t_documents.config.secretspec_source import SECRETSPEC_MANIFEST_NAME
 from itu_t_documents.config.settings import (
@@ -12,6 +13,8 @@ from itu_t_documents.config.settings import (
     SecretspecManifestSource,
     Settings,
     TomlConfigSource,
+    default_config_dir,
+    default_config_file,
 )
 
 
@@ -56,12 +59,7 @@ def test_configuration_file(monkeypatch, tmp_path: Path) -> None:
         '[credentials]\nusername = "file@example.org"\npassword = "file-secret"\n\n[general]\ntimeout = 90\nmax_concurrency = 8\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        "itu_t_documents.config.settings.default_config_file",
-        lambda: config_dir / CONFIG_FILE_NAME,
-    )
-
-    settings = Settings()
+    settings = Settings(config_dir=config_dir)
 
     assert settings.ties_username == "file@example.org"
     assert settings.ties_password is not None
@@ -80,12 +78,7 @@ def test_environment_overrides_the_configuration_file(monkeypatch, tmp_path: Pat
         '[credentials]\nusername = "file@example.org"\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        "itu_t_documents.config.settings.default_config_file",
-        lambda: config_dir / CONFIG_FILE_NAME,
-    )
-
-    settings = Settings()
+    settings = Settings(config_dir=config_dir)
 
     assert settings.ties_username == "env@example.org"
 
@@ -139,12 +132,7 @@ def test_secretspec_manifest_from_the_configuration_file(monkeypatch, tmp_path: 
         '[general]\nsecretspec_manifest = "/srv/secretspec.toml"\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        "itu_t_documents.config.settings.default_config_file",
-        lambda: config_dir / CONFIG_FILE_NAME,
-    )
-
-    settings = Settings()
+    settings = Settings(config_dir=config_dir)
 
     assert settings.secretspec_manifest == Path("/srv/secretspec.toml")
 
@@ -157,13 +145,9 @@ def test_environment_manifest_wins_over_the_configuration_file(monkeypatch, tmp_
         '[general]\nsecretspec_manifest = "/srv/secretspec.toml"\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        "itu_t_documents.config.settings.default_config_file",
-        lambda: config_dir / CONFIG_FILE_NAME,
-    )
     monkeypatch.setenv("ITU_SECRETSPEC_MANIFEST", str(tmp_path / "secretspec.toml"))
 
-    settings = Settings()
+    settings = Settings(config_dir=config_dir)
 
     assert settings.secretspec_manifest == tmp_path / "secretspec.toml"
 
@@ -205,3 +189,22 @@ def test_manifest_source_field_value_is_unset() -> None:
     field = Settings.model_fields["secretspec_manifest"]
 
     assert source.get_field_value(field, "secretspec_manifest") == (None, "secretspec_manifest", False)
+
+
+def test_the_default_configuration_directory_follows_the_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The directory and the file inside it follow ITU_CONFIG_DIR."""
+    monkeypatch.setenv("ITU_CONFIG_DIR", str(tmp_path))
+
+    assert default_config_dir() == tmp_path
+    assert default_config_file() == tmp_path / CONFIG_FILE_NAME
+
+
+def test_settings_source_reports_unset_fields() -> None:
+    """The TOML source never sets a field on its own."""
+    source = TomlConfigSource(Settings, Path(__file__))
+
+    value, name, complex_ = source.get_field_value(FieldInfo(annotation=int), "timeout")
+
+    assert value is None
+    assert name == "timeout"
+    assert not complex_

@@ -40,10 +40,17 @@ def write_question(session: Session, question: Question, period_label: str) -> N
     row.working_group = question.working_group.code
     session.flush()
 
+    # The people of a question change with the published structure, so the
+    # stored ones are replaced instead of appended to on every sync.
+    question_id = row_id(row)
+    for person_row in session.exec(select(PersonRow).where(PersonRow.question_id == question_id)).all():
+        session.delete(person_row)
+    session.flush()
+
     for person in question.people:
         session.add(
             PersonRow(
-                question_id=row_id(row),
+                question_id=question_id,
                 name=person.name,
                 role=person.role.value,
                 organization=person.organization,

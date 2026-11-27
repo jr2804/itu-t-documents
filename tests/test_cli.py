@@ -5,16 +5,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import get_args, get_type_hints
 
+import httpx
 import pytest
 
+from itu_t_documents.api import SyncReport
 from itu_t_documents.catalogue import CatalogueEntry
-from itu_t_documents.cli import commands
+from itu_t_documents.cli import commands, startup
+from itu_t_documents.cli.app import ItuApp
+from itu_t_documents.cli.app import app as cli_app
 from itu_t_documents.errors import AccessDeniedError, AuthenticationError, IncompleteListingError, UnknownEntityError
 from itu_t_documents.models.catalogue import StructureGroup, StudyGroup, StudyGroupStructure
 from itu_t_documents.models.documents import MeetingId
-from itu_t_documents.models.enums import DocType
-from itu_t_documents.models.questions import Question, WorkingGroup
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, Role
+from itu_t_documents.models.questions import Person, Question, WorkingGroup
 from itu_t_documents.models.study_periods import StudyPeriod
+from itu_t_documents.storage.queries import DocumentRecord, SourceCount
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -111,10 +116,26 @@ class FakeApi:
             raise IncompleteListingError("the listing holds 3 of 85 documents")
         return 7
 
+    def sync_study_group(self, study_group: int, study_period: StudyPeriod, doc_types=()) -> SyncReport:
+        """Store the documents of a study group."""
+        self.calls.append(("sync_study_group", study_group))
+        if self.truncated:
+            raise IncompleteListingError("the listing holds 3 of 85 documents")
+        return SyncReport(meetings=(("270119", 7), ("261015", 7)), period_only=2)
+
+    def count_documents(self) -> int:
+        """Return the number of stored documents."""
+        return 0
+
     def find_documents(self, **kwargs) -> list:
         """Return the documents of the fake study group."""
         self.calls.append(("find_documents", kwargs))
         return []
+
+    def top_sources(self, study_group: int, *, last_meetings=None, study_period=None, limit=10) -> list[SourceCount]:
+        """Return the most prolific sources."""
+        self.calls.append(("top_sources", study_group, last_meetings, study_period, limit))
+        return [SourceCount(source="ITU-T Study Group 12", count=19, contributions=0, temporary_documents=19)]
 
 
 class RefusingApi:
@@ -124,7 +145,7 @@ class RefusingApi:
         """Keep the error that the download raises."""
         self.error = error
 
-    def download(self, ref, file_format, language, output=None) -> Path:
+    def download(self, ref, file_format, language, output_file=None) -> Path:
         """Refuse the download."""
         raise self.error
 
@@ -185,17 +206,16 @@ def test_sync_command_without_a_meeting(fake_api: FakeApi, capsys: pytest.Captur
     out = capsys.readouterr().out
     assert "270119: 7 documents" in out
     assert "261015: 7 documents" in out
+    assert "the period listing: 2 documents" in out
+    assert ("sync_study_group", 12) in fake_api.calls
 
 
-def test_sync_command_with_an_incomplete_listing(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+def test_sync_command_with_an_incomplete_listing(fake_api: FakeApi) -> None:
     """A truncated listing is reported instead of storing incomplete data."""
     fake_api.truncated = True
 
-    commands.sync(study_group=12, study_period="2025-2028", meeting="260609")
-
-    out = capsys.readouterr().out
-    assert "the listing is incomplete" in out
-    assert "3 of 85" in out
+    with pytest.raises(IncompleteListingError, match="3 of 85"):
+        commands.sync(study_group=12, study_period="2025-2028", meeting="260609")
 
 
 def test_documents_command_without_results(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
@@ -207,7 +227,7 @@ def test_documents_command_without_results(fake_api: FakeApi, capsys: pytest.Cap
 
 def test_documents_command_with_a_type(fake_api: FakeApi) -> None:
     """The documents command passes the document type and period on."""
-    commands.documents(study_group=12, study_period="2025-2028", doc_type="TD")
+    commands.documents(study_group=12, study_period="2025-2028", doc_type=DocType.TEMPORARY_DOCUMENT)
 
     call = next(call for call in fake_api.calls if call[0] == "find_documents")
     assert call[1]["doc_type"] is DocType.TEMPORARY_DOCUMENT
@@ -237,22 +257,87 @@ def test_documents_command_searches_every_period_by_default() -> None:
     assert "Defaults to every study period." in get_args(hints["study_period"])[1].help
 
 
-def test_auth_command_without_credentials(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_auth_command_without_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     """Without credentials the auth command explains what to set."""
-    monkeypatch.setattr(commands, "Settings", _SettingsWithoutCredentials)
+    monkeypatch.setattr(startup, "Settings", _SettingsWithoutCredentials)
 
-    commands.auth()
+    with pytest.raises(AuthenticationError, match="ITU_TIES_USERNAME"):
+        commands.auth()
 
-    out = capsys.readouterr().out
-    assert "No TIES credentials found" in out
-    assert "ITU_TIES_USERNAME" in out
+
+def test_top_sources_command(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """The top-sources command counts the most recent stored meetings."""
+    commands.top_sources(study_group=12, last_meetings=3, study_period="2025-2028", limit=5)
+
+    assert "    19  ITU-T Study Group 12" in capsys.readouterr().out
+    assert ("top_sources", 12, 3, PERIOD, 5) in fake_api.calls
+
+
+def test_top_sources_command_without_results(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """Without stored documents the command explains what to do."""
+    fake_api.top_sources = lambda *args, **kwargs: []
+    commands.top_sources(study_group=12)
+
+    assert "No documents found" in capsys.readouterr().out
 
 
 def test_download_command_with_an_invalid_identifier(capsys: pytest.CaptureFixture[str]) -> None:
     """The download command reports an identifier it cannot read."""
-    commands.download("nonsense", file_format="PDF", language="E")
+    with pytest.raises(SystemExit) as stopped:
+        cli_app(["download", "nonsense"])
 
-    assert "Not a document identifier" in capsys.readouterr().out
+    assert stopped.value.code == 1
+    assert "cannot parse document identifier" in capsys.readouterr().err
+
+
+def test_an_enum_option_converts_the_dms_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A value that cyclopts accepts becomes the enumeration member."""
+    calls: list[tuple] = []
+
+    class ReturningApi:
+        def download(self, ref, file_format, language, output_file=None) -> Path:
+            calls.append((ref.document_id, file_format, language))
+            path = tmp_path / "contribution.docx"
+            path.write_bytes(b"document")
+            return path
+
+        def __enter__(self) -> ReturningApi:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+    monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: ReturningApi())
+
+    with pytest.raises(SystemExit) as stopped:
+        cli_app(["download", "T25-SG12-C-0192", "--format", "MSW"])
+
+    assert stopped.value.code == 0
+    assert calls == [("T25-SG12-C-0192", DocFormat.WORD, DocLanguage.ENGLISH)]
+
+
+def test_the_cli_reports_an_unreachable_site(capsys: pytest.CaptureFixture[str]) -> None:
+    """A connection failure is one line on stderr and exit code 1."""
+    app = ItuApp(name="test")
+
+    def unreachable() -> None:
+        raise httpx.ConnectError("offline")
+
+    app.command(unreachable)
+    with pytest.raises(SystemExit) as stopped:
+        app(["unreachable"])
+
+    assert stopped.value.code == 1
+    assert "cannot reach the ITU-T: offline" in capsys.readouterr().err
+
+
+def test_a_value_outside_the_choices_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
+    """Cyclopts rejects a format outside the enumeration before the command runs."""
+    with pytest.raises(SystemExit) as stopped:
+        cli_app(["download", "T25-SG12-C-0192", "--format", "nope"])
+
+    assert stopped.value.code == 2
+    assert "Invalid value" in capsys.readouterr().err
 
 
 def test_download_command_with_an_unavailable_rendition(
@@ -263,10 +348,8 @@ def test_download_command_with_an_unavailable_rendition(
     error = FileNotFoundError("T25-SG12-C-0192 is not available")
     monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: RefusingApi(error))
 
-    commands.download("T25-SG12-C-0192", file_format="PDF", language="E")
-
-    out = capsys.readouterr().out
-    assert "is not available as PDF-E" in out
+    with pytest.raises(FileNotFoundError, match="not available"):
+        commands.download("T25-SG12-C-0192", file_format=DocFormat.PDF, language=DocLanguage.ENGLISH)
 
 
 def test_download_command_with_a_document_the_account_may_not_see(
@@ -277,11 +360,8 @@ def test_download_command_with_a_document_the_account_may_not_see(
     error = AccessDeniedError("T25-SG13-C-0001 is not accessible with these credentials")
     monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: RefusingApi(error))
 
-    commands.download("T25-SG13-C-0001", file_format="PDF", language="E")
-
-    out = capsys.readouterr().out
-    assert "is not accessible with these credentials" in out
-    assert "membership" in out
+    with pytest.raises(AccessDeniedError, match="not accessible"):
+        commands.download("T25-SG13-C-0001", file_format=DocFormat.PDF, language=DocLanguage.ENGLISH)
 
 
 def test_download_command_without_credentials(
@@ -292,11 +372,8 @@ def test_download_command_without_credentials(
     error = AuthenticationError("no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD")
     monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: RefusingApi(error))
 
-    commands.download("T25-SG12-COL-0001", file_format="MSW", language="F")
-
-    out = capsys.readouterr().out
-    assert "no TIES credentials configured" in out
-    assert "ITU_TIES_USERNAME" in out
+    with pytest.raises(AuthenticationError, match="ITU_TIES_USERNAME"):
+        commands.download("T25-SG12-COL-0001", file_format=DocFormat.WORD, language=DocLanguage.FRENCH)
 
 
 # ----------------------------------------------------------------------
@@ -341,11 +418,10 @@ def test_study_groups_command_without_a_study_group(fake_api: FakeApi, capsys: p
     assert "publishes no study group" in capsys.readouterr().out
 
 
-def test_structure_command_with_an_unknown_study_group(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+def test_structure_command_with_an_unknown_study_group(fake_api: FakeApi) -> None:
     """The structure command reports a study group that does not exist."""
-    commands.structure(study_group=9, study_period="2025-2028")
-
-    assert "has no study group SG09" in capsys.readouterr().out
+    with pytest.raises(UnknownEntityError, match="has no study group SG09"):
+        commands.structure(study_group=9, study_period="2025-2028")
 
 
 def test_search_command(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
@@ -382,3 +458,181 @@ def fake_api(monkeypatch: pytest.MonkeyPatch) -> FakeApi:
     api = FakeApi()
     monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: api)
     return api
+
+
+def test_cli_mcp_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mcp command starts the MCP server."""
+    started: list[bool] = []
+    monkeypatch.setattr("itu_t_documents.mcp.main", lambda: started.append(True))
+
+    commands.mcp()
+
+    assert started == [True]
+
+
+def test_cli_auth_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The auth command reports a successful login."""
+
+    class FakeSettings:
+        """Settings with credentials."""
+
+        config_file = Path("~/.config/itu-t-documents/config.toml")
+
+        def has_credentials(self) -> bool:
+            """Report that credentials are available."""
+            return True
+
+    class FakeClient:
+        """A client that authenticates."""
+
+        def __enter__(self) -> FakeClient:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def authenticate(self) -> None:
+            """Authenticate successfully."""
+
+    monkeypatch.setattr(startup, "Settings", FakeSettings)
+    monkeypatch.setattr(startup, "ItuHttpClient", lambda settings: FakeClient())
+
+    commands.auth()
+
+    assert "TIES login succeeded" in capsys.readouterr().out
+
+
+def test_cli_auth_command_reports_a_failure(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The auth command reports a failed login."""
+
+    class FakeSettings:
+        """Settings with credentials."""
+
+        config_file = Path("~/.config/itu-t-documents/config.toml")
+
+        def has_credentials(self) -> bool:
+            """Report that credentials are available."""
+            return True
+
+    class FakeClient:
+        """A client whose login fails."""
+
+        def __enter__(self) -> FakeClient:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def authenticate(self) -> None:
+            """Fail the login."""
+            raise AuthenticationError("invalid credentials")
+
+    monkeypatch.setattr(startup, "Settings", FakeSettings)
+    monkeypatch.setattr(startup, "ItuHttpClient", lambda settings: FakeClient())
+
+    with pytest.raises(AuthenticationError, match="invalid credentials"):
+        commands.auth()
+
+    assert capsys.readouterr().out == ""
+
+
+def test_cli_questions_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The questions command lists the questions of a study group."""
+
+    class FakeApi:
+        """A stand-in for the API."""
+
+        def list_questions(self, study_group: int, study_period) -> list[Question]:
+            """Return one question."""
+            return [
+                Question(
+                    number=5,
+                    study_group=12,
+                    title="Telephonometric methodologies",
+                    working_group=WorkingGroup.parse("WP1/12"),
+                    people=[Person(name="Lars Birger NIELSEN", role=Role.RAPPORTEUR)],
+                )
+            ]
+
+        def __enter__(self) -> FakeApi:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def close(self) -> None:
+            """Close the fake API."""
+
+    monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: FakeApi())
+
+    commands.questions(study_group=12, study_period="2025-2028")
+
+    out = capsys.readouterr().out
+    assert "Q5/12" in out
+    assert "Lars Birger NIELSEN" in out
+
+
+def test_cli_documents_command(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The documents command prints the documents it found."""
+
+    class FakeApi:
+        """A stand-in for the API."""
+
+        def find_documents(self, **kwargs) -> list[DocumentRecord]:
+            """Return one document."""
+            return [
+                DocumentRecord(
+                    document_id="T25-SG12-C-0192",
+                    doc_type=DocType.CONTRIBUTION,
+                    number=192,
+                    subtype=None,
+                    title="A proposal",
+                    sources=("Acme Ltd. (Germany)",),
+                    questions=(5,),
+                )
+            ]
+
+        def __enter__(self) -> FakeApi:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def close(self) -> None:
+            """Close the fake API."""
+
+    monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: FakeApi())
+
+    commands.documents(study_group=12, study_period="2025-2028")
+
+    out = capsys.readouterr().out
+    assert "T25-SG12-C-0192" in out
+    assert "Acme Ltd." in out
+
+
+def test_cli_download_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The download command writes the document and reports its size."""
+
+    class FakeApi:
+        """A stand-in for the API."""
+
+        def download(self, ref, file_format, language, output_file=None) -> Path:
+            """Return the path of the downloaded document."""
+            path = tmp_path / "document.pdf"
+            path.write_bytes(b"content")
+            return path
+
+        def __enter__(self) -> FakeApi:
+            return self
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+        def close(self) -> None:
+            """Close the fake API."""
+
+    monkeypatch.setattr(commands, "ItuDocuments", lambda *args, **kwargs: FakeApi())
+
+    commands.download("T25-SG12-C-0192", file_format=DocFormat.PDF, language=DocLanguage.ENGLISH)
+
+    assert "7 bytes" in capsys.readouterr().out

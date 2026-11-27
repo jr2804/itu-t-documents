@@ -2,54 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from importlib import import_module
 from pathlib import Path
 
 from itu_t_documents.api import ItuDocuments
 from itu_t_documents.cli import args
-from itu_t_documents.config.settings import Settings
-from itu_t_documents.errors import AccessDeniedError, AuthenticationError, IncompleteListingError, UnknownEntityError
-from itu_t_documents.http.client import ItuHttpClient
+from itu_t_documents.cli.formatting import print_documents
+from itu_t_documents.cli.startup import auth, default, mcp
 from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
 from itu_t_documents.models.study_periods import StudyPeriod
-from itu_t_documents.storage.queries import DocumentRecord
-from itu_t_documents.urls import period_index
+from itu_t_documents.urls import DEFAULT_STUDY_GROUP, period_index
 
-
-def default() -> None:
-    """Show a short introduction to the ITU-T documents."""
-    print("itu-t-documents — access the documents of ITU-T study group meetings.")
-    print("Use --help to see the available commands.")
-
-
-def mcp() -> None:
-    """Run the MCP server over stdio."""
-    # Loaded here and not at the top of the module: the MCP libraries take
-    # longer to import than the rest of the command line together.
-    import_module("itu_t_documents.mcp").main()
-
-
-def auth() -> None:
-    """Check whether TIES credentials are configured and usable."""
-    settings = Settings()
-    if not settings.has_credentials():
-        print("No TIES credentials found.")
-        print(f"Set ITU_TIES_USERNAME and ITU_TIES_PASSWORD, or store them in {settings.config_file}.")
-        return
-
-    with ItuHttpClient(settings) as client:
-        try:
-            client.authenticate()
-        except AuthenticationError as error:
-            print(f"TIES login failed: {error}")
-            return
-    print("TIES login succeeded.")
+__all__ = ["auth", "default", "mcp"]
 
 
 def meetings(
-    study_group: args.StudyGroup = 12,
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
     study_period: args.StudyPeriod = None,
 ) -> None:
     """List the meetings of a study group."""
@@ -59,30 +27,31 @@ def meetings(
 
 
 def sync(
-    study_group: args.StudyGroup = 12,
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
     study_period: args.StudyPeriod = None,
     meeting: args.Meeting | None = None,
     doc_type: args.DocTypeOption = None,
 ) -> None:
     """Fetch the documents of a meeting and store them in the local database."""
-    types = (DocType(doc_type),) if doc_type else (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT)
+    types = (doc_type,) if doc_type else (DocType.CONTRIBUTION, DocType.TEMPORARY_DOCUMENT)
     with ItuDocuments() as api:
         period = _period(study_period)
-        codes = [meeting] if meeting else [item.code for item in api.list_meetings(study_group, period)]
-        total = 0
-        for code in codes:
-            try:
-                stored = api.sync_meeting(study_group, MeetingId.from_code(code), period, types)
-            except IncompleteListingError as error:
-                print(f"{code}: the listing is incomplete — {error}")
-                return
-            total += stored
-            print(f"{code}: {stored} documents")
+        if meeting:
+            stored = api.sync_meeting(study_group, MeetingId.from_code(meeting), period, types)
+            print(f"{meeting}: {stored} documents")
+            total = stored
+        else:
+            report = api.sync_study_group(study_group, period, types)
+            for code, stored in report.meetings:
+                print(f"{code}: {stored} documents")
+            if report.period_only:
+                print(f"the period listing: {report.period_only} documents")
+            total = report.total
         print(f"{total} documents stored in {api.store.database_path}")
 
 
 def documents(
-    study_group: args.StudyGroup = 12,
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
     *,
     study_period: args.StudyPeriodFilter = None,
     meeting: args.Meeting | None = None,
@@ -97,7 +66,7 @@ def documents(
         records = api.find_documents(
             study_group=study_group,
             study_period=period.label if period is not None else None,
-            doc_type=DocType(doc_type) if doc_type else None,
+            doc_type=doc_type,
             meeting=meeting,
             question=question,
             source=source,
@@ -106,54 +75,25 @@ def documents(
     if not records:
         print("No documents found. Run `itu-t-documents sync` first.")
         return
-    _print_documents(records)
-
-
-def _print_documents(records: Sequence[DocumentRecord]) -> None:
-    """Print document records as a table."""
-    for record in records:
-        questions = ",".join(str(number) for number in record.questions) or "-"
-        sources = "; ".join(record.sources) or "-"
-        print(f"{record.document_id:<32} {record.doc_type.value:<4} Q{questions:<10} {record.title[:60]:<62} {sources[:40]}")
+    print_documents(records)
 
 
 def download(
     document: args.DocumentId,
-    file_format: args.FileFormat = "PDF",
-    language: args.Language = "E",
+    file_format: args.FileFormat = DocFormat.PDF,
+    language: args.Language = DocLanguage.ENGLISH,
     output_file: args.OutputFile = None,
 ) -> None:
     """Download a document from the ITU-T document management system."""
-    try:
-        ref = DocumentRef.parse(document)
-    except ValueError:
-        print(f"Not a document identifier: {document}")
-        return
+    ref = DocumentRef.parse(document)
     with ItuDocuments() as api:
-        try:
-            path = api.download(
-                ref,
-                file_format=DocFormat(file_format.upper()),
-                language=DocLanguage(language.upper()),
-                output=Path(output_file) if output_file else None,
-            )
-        except FileNotFoundError:
-            print(f"{ref.document_id} is not available as {file_format.upper()}-{language.upper()}.")
-            print("Run `itu-t-documents documents` to see the documents that are known.")
-            return
-        except AccessDeniedError as error:
-            print(f"{error}.")
-            print("The membership of a TIES account covers only the study groups it belongs to.")
-            return
-        except AuthenticationError as error:
-            print(f"{error}.")
-            return
-    print(f"{path} ({path.stat().st_size} bytes)")
-
-
-# ----------------------------------------------------------------------
-# The catalogue of the ITU-T study groups
-# ----------------------------------------------------------------------
+        path_file = api.download(
+            ref,
+            file_format=file_format,
+            language=language,
+            output_file=Path(output_file) if output_file else None,
+        )
+    print(f"{path_file} ({path_file.stat().st_size} bytes)")
 
 
 def periods() -> None:
@@ -176,17 +116,13 @@ def study_groups(study_period: args.StudyPeriod = None) -> None:
 
 
 def structure(
-    study_group: args.StudyGroup = 12,
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
     study_period: args.StudyPeriod = None,
 ) -> None:
     """Show the structure of a study group."""
     period = _period(study_period)
     with ItuDocuments() as api:
-        try:
-            found = api.catalogue.structure(study_group, period)
-        except UnknownEntityError as error:
-            print(f"{error}.")
-            return
+        found = api.catalogue.structure(study_group, period)
     if found.plenary is not None:
         print(f"{found.plenary.code:<12} plenary")
     for working_group in found.working_groups:
@@ -198,7 +134,7 @@ def structure(
 
 
 def questions(
-    study_group: args.StudyGroup = 12,
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
     study_period: args.StudyPeriod = None,
 ) -> None:
     """List the questions under study of a study group."""
@@ -223,6 +159,28 @@ def search(
         return
     for entry in entries:
         print(f"{entry.kind:<16} {entry.code:<14} {entry.title}")
+
+
+def top_sources(
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
+    last_meetings: args.LastMeetings = 3,
+    study_period: args.StudyPeriod = None,
+    limit: args.Limit = 10,
+) -> None:
+    """Show the sources that submitted the most documents."""
+    period = _period(study_period)
+    with ItuDocuments() as api:
+        counts = api.top_sources(
+            study_group=study_group,
+            last_meetings=last_meetings,
+            study_period=period,
+            limit=limit or 10,
+        )
+    if not counts:
+        print("No documents found. Run `itu-t-documents sync` first.")
+        return
+    for count in counts:
+        print(f"{count.count:>6}  {count.source}")
 
 
 def _period(label: str | None) -> StudyPeriod:

@@ -16,50 +16,67 @@ A complete login consists of four steps:
    establishes the session cookie on ``www.itu.int``.
 
 The steps were reverse engineered from the live pages; see ``docs/`` for the
-recorded request/response chain.
+recorded request/response chain. :mod:`itu_t_documents.auth.forms` reads the
+forms and messages the handshake is made of.
 """
 
 from __future__ import annotations
 
-import base64
-import re
 from collections.abc import Iterator
 
 import httpx
-from lxml import html
 
-from itu_t_documents.errors import AuthenticationError
+from itu_t_documents.auth.forms import (
+    SAML_CONSUMER_MARKER,
+    SAML_PROFILE_MARKERS,
+    SAML_REQUEST_FIELD,
+    SAML_RESPONSE_FIELD,
+    SSO_REQUEST_URL,
+    extract_apmui_message,
+    find_profile_form,
+    find_saml_form,
+    sso_request_url,
+)
+from itu_t_documents.auth.forms import (
+    _iter_forms as _iter_forms_from_forms,
+)
+from itu_t_documents.errors import AuthenticationError, ScrapingError
 
 #: Logon endpoint of the ITU-T identity provider.
 LOGON_URL = "https://login.itu.int/my.policy"
-
-#: Endpoint of the access policy that starts the single sign-on handshake.
-SSO_REQUEST_URL = "https://auth.itu.int/F5Networks-SSO-Req"
 
 #: Resource the session is opened for when no document is named. The access
 #: policy only opens a session for a protected resource, so the probe points at
 #: a document file that does not exist.
 SESSION_PROBE_URL = "https://www.itu.int/dms_ties/itu-t/md/25/sg12/r/T25-SG12-R-0000!!MSW-E.docx"
 
-#: Name of the hidden form field carrying a SAML request.
-SAML_REQUEST_FIELD = "SAMLRequest"
-
-#: Name of the hidden form field carrying a SAML response.
-SAML_RESPONSE_FIELD = "SAMLResponse"
-
-#: Markers of the SAML profile endpoints. The identity provider serves the
-#: login on ``login.itu.int`` (``/saml/idp/profile/``), the assertion consumer
-#: service on ``auth.itu.int`` (``/saml/sp/profile/``).
-SAML_PROFILE_MARKERS = ("/saml/", "/profile/")
-
-#: Marker of the assertion consumer service, which accepts the SAML response.
-SAML_CONSUMER_MARKER = "/saml/sp/profile/"
-
 #: Maximum number of redirects and SAML handovers followed during one login.
 _MAX_HOPS = 8
 
 #: HTTP status codes that carry a redirect.
 _REDIRECT_STATUS = {301, 302, 303, 307, 308}
+
+__all__ = [
+    "LOGON_URL",
+    "SAML_CONSUMER_MARKER",
+    "SAML_PROFILE_MARKERS",
+    "SAML_REQUEST_FIELD",
+    "SAML_RESPONSE_FIELD",
+    "SESSION_PROBE_URL",
+    "SSO_REQUEST_URL",
+    "AuthenticationError",
+    "ScrapingError",
+    "TiesAuthenticator",
+    "extract_apmui_message",
+    "find_profile_form",
+    "find_saml_form",
+    "sso_request_url",
+]
+
+
+def _iter_forms(page_html: str) -> Iterator[tuple[str, dict[str, str]]]:
+    """Yield the forms of a TIES page; kept importable here for compatibility."""
+    yield from _iter_forms_from_forms(page_html)
 
 
 class TiesAuthenticator:
@@ -162,87 +179,8 @@ class TiesAuthenticator:
                 # session is established. What the resource answers afterwards
                 # does not say anything about the login.
                 reached_consumer = True
-        else:  # pragma: no cover - defensive, the hop budget is generous
+        else:
             raise AuthenticationError("TIES login did not complete within the allowed number of hops")
 
         if not reached_consumer:
             raise AuthenticationError("TIES login did not reach the assertion consumer service")
-
-
-def sso_request_url(target: str) -> str:
-    """Return the single sign-on URL of the access policy for a resource.
-
-    Args:
-        target: The protected resource the session is opened for.
-
-    Returns:
-        The absolute URL of the single sign-on endpoint.
-    """
-    encoded = base64.b64encode(target.encode("utf-8")).decode("ascii")
-    return f"{SSO_REQUEST_URL}?SSO_ORIG_URI={encoded}"
-
-
-def find_saml_form(page_html: str, field: str) -> tuple[str, dict[str, str]] | None:
-    """Return the first form on the page that carries ``field``.
-
-    Args:
-        page_html: The HTML of the page.
-        field: The name of the hidden SAML field to look for.
-
-    Returns:
-        The form action and its fields, or ``None`` when the page has no such form.
-    """
-    for action, fields in _iter_forms(page_html):
-        if field in fields:
-            return action, fields
-    return None
-
-
-def find_profile_form(page_html: str) -> tuple[str, dict[str, str]] | None:
-    """Return the first form on the page that points at a SAML profile endpoint.
-
-    The identity provider answers a successful login with pages that submit
-    themselves: first a form that hands a ``dummy`` value back to the profile
-    endpoint, then a form that posts the SAML response to the assertion
-    consumer service.
-
-    Args:
-        page_html: The HTML of the page.
-
-    Returns:
-        The form action and its fields, or ``None`` when the page has no such form.
-    """
-    for action, fields in _iter_forms(page_html):
-        if all(marker in action for marker in SAML_PROFILE_MARKERS):
-            return action, fields
-    return None
-
-
-def _iter_forms(page_html: str) -> Iterator[tuple[str, dict[str, str]]]:
-    """Yield ``(action, fields)`` for every form found in ``page_html``."""
-    try:
-        tree = html.fromstring(page_html)
-    except ValueError:  # pragma: no cover - defensive, malformed markup
-        return
-    for form in tree.xpath("//form"):
-        fields = {node.get("name"): node.get("value") or "" for node in form.xpath(".//input[@name]")}
-        yield form.get("action") or "", fields
-
-
-def extract_apmui_message(page_html: str) -> str | None:
-    """Extract the user facing message of an F5 access policy error page.
-
-    Args:
-        page_html: The HTML of the page.
-
-    Returns:
-        The message shown to the user, or ``None`` when the page carries none.
-    """
-    index = page_html.find('"messageBox"')
-    section = page_html[index : index + 3000] if index >= 0 else ""
-    title = re.search(r'"title":\s*"((?:[^"\\]|\\.)*)"', section)
-    message = re.search(r'"message":\s*"((?:[^"\\]|\\.)*)"', section)
-    parts = [part.group(1) for part in (title, message) if part is not None]
-    if not parts:
-        return None
-    return ": ".join(parts)

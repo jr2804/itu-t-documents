@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
+import httpx
 import pytest
 from sqlmodel import select
 
+from itu_t_documents import fetching
 from itu_t_documents.api import ItuDocuments
 from itu_t_documents.config.settings import Settings
-from itu_t_documents.errors import AccessDeniedError, IncompleteListingError
+from itu_t_documents.errors import AccessDeniedError, AuthenticationError, IncompleteListingError, ScrapingError
 from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
 from itu_t_documents.models.metadata import DocumentMetadata
@@ -105,7 +109,7 @@ def test_fetch_documents_of_a_listing_with_an_unreadable_page(api: ItuDocuments,
     read_page = fake_client.get_text
     monkeypatch.setattr(fake_client, "get_text", lambda url: "" if url.endswith("&PageLB=10") else read_page(url))
 
-    with pytest.raises(IncompleteListingError, match="the listing holds 10 of 14 documents"):
+    with pytest.raises(ScrapingError, match="cannot read document listing"):
         api.fetch_documents(12, DocType.REPORT, StudyPeriod(start_year=2025, end_year=2028))
 
 
@@ -195,6 +199,69 @@ def test_top_sources(api: ItuDocuments) -> None:
     assert all(count.meetings == ("260609",) for count in counts)
 
 
+def test_sync_period_stores_contributions_without_a_meeting(api: ItuDocuments) -> None:
+    """The period-wide listing stores a contribution that no meeting listing names."""
+    stored = api.sync_period(12, PERIOD, (DocType.CONTRIBUTION,))
+
+    assert stored > 0
+    assert api.find_documents(study_group=12, doc_type=DocType.CONTRIBUTION)
+
+
+def test_sync_period_skips_the_previewed_temporary_documents(api: ItuDocuments) -> None:
+    """Temporary documents are read meeting by meeting, not from the aggregate listing."""
+    stored = api.sync_period(12, PERIOD, (DocType.TEMPORARY_DOCUMENT, DocType.CONTRIBUTION))
+
+    assert stored > 0
+    assert not api.find_documents(study_group=12, doc_type=DocType.TEMPORARY_DOCUMENT)
+
+
+def test_sync_study_group_reports_what_every_meeting_stored(api: ItuDocuments, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A study-group synchronisation reports the documents stored per meeting."""
+    monkeypatch.setattr(api, "list_meetings", lambda *args: [SimpleNamespace(code="260609"), SimpleNamespace(code="250909")])
+    monkeypatch.setattr(api, "sync_meeting", lambda *args: 2)
+    monkeypatch.setattr(api, "sync_period", lambda *args: 1)
+
+    report = api.sync_study_group(12, PERIOD, (DocType.CONTRIBUTION,))
+
+    assert report.meetings == (("260609", 2), ("250909", 2))
+    assert report.period_only == 1
+    assert report.total == 5
+
+
+def test_top_sources_uses_the_most_recent_stored_meetings(api: ItuDocuments) -> None:
+    """The last-meetings filter selects the newest meeting codes in the store."""
+    for number, meeting in ((1, "250909"), (2, "260609")):
+        ref = DocumentRef(study_period=PERIOD, study_group=12, doc_type=DocType.CONTRIBUTION, number=number, meeting=MeetingId.from_code(meeting))
+        api.store.store_document(DocumentMetadata(ref=ref, title=f"Document {number}", sources=["Acme"]))
+
+    counts = api.top_sources(study_group=12, last_meetings=1)
+
+    assert counts
+    assert all(count.meetings == ("260609",) for count in counts)
+
+
+def test_a_listing_page_without_new_documents_ends_the_reading(api: ItuDocuments, fixtures_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A next page that repeats the documents already read ends the reading."""
+    page = (fixtures_dir / "listing_contributions.html").read_text(encoding="utf-8")
+
+    class SamePageClient:
+        def get_text(self, url: str) -> str:
+            return page
+
+        def authenticate(self, target: str | None = None) -> httpx.Client:
+            return cast(httpx.Client, self)
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(fetching.listing_scraper, "parse_next_page", lambda page: "/md/next")
+
+    first, documents = fetching._read_listing(SamePageClient(), PERIOD, 12, DocType.CONTRIBUTION)
+
+    assert first == page
+    assert documents
+
+
 def test_download_a_revised_document(api: ItuDocuments) -> None:
     """The original of a revised document is downloaded."""
     ref = DocumentRef.parse("T25-SG02-C-0001")
@@ -205,6 +272,28 @@ def test_download_a_revised_document(api: ItuDocuments) -> None:
     assert path.read_bytes() == DOCUMENT_BYTES
 
 
+def test_download_writes_the_fresh_rendition_to_an_output_file(api: ItuDocuments, tmp_path: Path) -> None:
+    """A downloaded rendition is copied to the requested output file."""
+    output = tmp_path / "out" / "contribution.docx"
+
+    path = api.download(DocumentRef.parse("T25-SG12-C-0192"), DocFormat.WORD, DocLanguage.ENGLISH, output_file=output)
+
+    assert path == output
+    assert output.read_bytes() == DOCUMENT_BYTES
+
+
+def test_download_writes_a_cached_rendition_to_an_output_file(api: ItuDocuments, tmp_path: Path) -> None:
+    """A cached rendition is copied to the requested output file without a request."""
+    ref = DocumentRef.parse("T25-SG12-C-0192")
+    api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
+    output = tmp_path / "out" / "contribution.docx"
+
+    path = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH, output_file=output)
+
+    assert path == output
+    assert output.read_bytes() == DOCUMENT_BYTES
+
+
 def test_download_a_document_that_was_only_revised(api: ItuDocuments) -> None:
     """A revision is downloaded when the original is gone."""
     ref = DocumentRef.parse("T25-SG02-C-0002")
@@ -213,6 +302,19 @@ def test_download_a_document_that_was_only_revised(api: ItuDocuments) -> None:
 
     assert path.name == "MSW-E-R1.docx"
     assert path.read_bytes() == DOCUMENT_BYTES
+
+
+def test_a_collective_letter_still_authenticates(api: ItuDocuments, fake_client: FakeClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A public collective letter goes through the authenticated download path."""
+
+    def refuse(target: str | None = None) -> httpx.Client:
+        """Refuse the login the download asks for."""
+        raise AuthenticationError("no TIES credentials configured")
+
+    monkeypatch.setattr(fake_client, "authenticate", refuse)
+
+    with pytest.raises(AuthenticationError, match="no TIES credentials"):
+        api.download(DocumentRef.parse("T25-SG12-COL-0006"), DocFormat.WORD, DocLanguage.ENGLISH)
 
 
 def test_download_a_document_the_account_may_not_see(api: ItuDocuments, fake_client: FakeClient) -> None:
@@ -274,3 +376,164 @@ def api(tmp_path: Path, fake_client: FakeClient) -> Iterator[ItuDocuments]:
     api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
     yield api
     api.close()
+
+
+PERIOD = StudyPeriod(start_year=2025, end_year=2028)
+
+
+def test_find_documents_filters_by_every_criterion(tmp_path: Path, fake_client: FakeClient) -> None:
+    """Every filter of the document search can be combined."""
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
+    api.sync_meeting(12, MeetingId.from_code("260609"), PERIOD, (DocType.CONTRIBUTION,))
+
+    records = api.find_documents(
+        study_group=12,
+        study_period="2025-2028",
+        doc_type=DocType.CONTRIBUTION,
+        doc_types=(DocType.CONTRIBUTION,),
+        meeting="260609",
+        question=7,
+        source="TU Berlin",
+        limit=1,
+    )
+
+    assert len(records) == 1
+    assert records[0].document_id == "T25-SG12-C-0192"
+
+
+def test_top_sources_skips_other_meetings(tmp_path: Path, fake_client: FakeClient) -> None:
+    """Meetings that are not asked for are left out of the count."""
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
+    api.sync_meeting(12, MeetingId.from_code("260609"), PERIOD, (DocType.CONTRIBUTION,))
+
+    assert api.top_sources(study_group=12, meetings=("270119",)) == []
+
+
+def test_download_writes_a_cached_document_to_an_output_path(tmp_path: Path, fake_client: FakeClient) -> None:
+    """A cached document is copied to the requested output path."""
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
+    document = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=520,
+        subtype="GEN",
+        meeting=MeetingId.from_code("261015"),
+    )
+    api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, b"cached")
+    output = tmp_path / "out" / "document.docx"
+
+    path = api.download(document, DocFormat.WORD, DocLanguage.ENGLISH, output_file=output)
+
+    assert path == output
+    assert output.read_bytes() == b"cached"
+
+
+def test_download_serves_a_cached_document(tmp_path: Path, fake_client: FakeClient) -> None:
+    """A document that was downloaded before is served from the cache."""
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
+    ref = MeetingId.from_code("261015")
+    assert ref.code == "261015"
+
+    document = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=520,
+        subtype="GEN",
+        meeting=MeetingId.from_code("261015"),
+    )
+
+    api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, b"cached")
+
+    path = api.download(document, DocFormat.WORD, DocLanguage.ENGLISH)
+
+    assert path.read_bytes() == b"cached"
+
+
+def test_sync_questions(api: ItuDocuments) -> None:
+    """The questions of a study group are stored."""
+    assert api.sync_questions(12, PERIOD) == 5
+
+
+def test_sync_detail(api: ItuDocuments) -> None:
+    """The renditions of a document are fetched and stored."""
+    ref = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=520,
+        subtype="GEN",
+        meeting=MeetingId.from_code("261015"),
+    )
+
+    metadata = api.sync_detail(ref)
+
+    assert metadata.files
+    assert metadata.files[0].format_code == "MSW"
+
+
+def test_download_uses_the_cache(tmp_path: Path, fake_client: FakeClient) -> None:
+    """A document that was downloaded before is served from the cache."""
+    client = fake_client
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=client)
+    ref = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=520,
+        subtype="GEN",
+        meeting=MeetingId.from_code("261015"),
+    )
+
+    path = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
+    assert path.read_bytes() == b"document-bytes"
+    assert client.requested
+
+    again = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
+    assert again == path
+    assert len([url for url in client.requested if url.endswith(".docx")]) == 1
+    assert client.login_targets == [client.requested[-1]]
+
+
+def test_download_writes_to_an_output_path(tmp_path: Path, fake_client: FakeClient) -> None:
+    """A document can be written to a chosen path."""
+    client = fake_client
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=client)
+    ref = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=520,
+        subtype="GEN",
+        meeting=MeetingId.from_code("261015"),
+    )
+    output = tmp_path / "out" / "document.docx"
+
+    path = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH, output_file=output)
+
+    assert path == output
+    assert output.read_bytes() == b"document-bytes"
+
+
+def test_download_of_an_unavailable_rendition(tmp_path: Path, fake_client: FakeClient) -> None:
+    """A rendition that the ITU-T does not offer is reported."""
+    client = fake_client
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=client)
+    ref = DocumentRef(
+        study_period=PERIOD,
+        study_group=12,
+        doc_type=DocType.TEMPORARY_DOCUMENT,
+        number=520,
+        subtype="GEN",
+        meeting=MeetingId.from_code("261015"),
+    )
+
+    with pytest.raises(FileNotFoundError):
+        api.download(ref, DocFormat.PDF, DocLanguage.ENGLISH)
+
+
+def test_api_context_manager_closes_the_client(tmp_path: Path, fake_client: FakeClient) -> None:
+    """The API closes the client it owns."""
+    with ItuDocuments(Settings(cache_dir=tmp_path)) as owned:
+        assert owned.client is not None

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
-
+from itu_t_documents.mcp.payloads import MeetingPayload, QuestionPayload, person_payload
 from itu_t_documents.mcp.support import open_api, resolve_period
+from itu_t_documents.models.enums import Role
+from itu_t_documents.urls import DEFAULT_STUDY_GROUP
 
 
-def list_meetings(study_group: int = 12, study_period: str | None = None) -> list[dict[str, Any]]:
+def list_meetings(study_group: int = DEFAULT_STUDY_GROUP, study_period: str | None = None) -> list[MeetingPayload]:
     """List the meetings of an ITU-T study group.
 
     Args:
@@ -32,7 +33,7 @@ def list_meetings(study_group: int = 12, study_period: str | None = None) -> lis
         ]
 
 
-def list_questions(study_group: int = 12, study_period: str | None = None) -> list[dict[str, Any]]:
+def list_questions(study_group: int = DEFAULT_STUDY_GROUP, study_period: str | None = None) -> list[QuestionPayload]:
     """List the questions under study of an ITU-T study group.
 
     Args:
@@ -41,7 +42,7 @@ def list_questions(study_group: int = 12, study_period: str | None = None) -> li
             current study period.
 
     Returns:
-        The questions with their working group and rapporteurs.
+        The questions with their working group and the people who hold a role.
     """
     period = resolve_period(study_period)
     with open_api() as api:
@@ -51,7 +52,9 @@ def list_questions(study_group: int = 12, study_period: str | None = None) -> li
                 "number": question.number,
                 "title": question.title,
                 "working_group": question.working_group.code,
-                "rapporteurs": [{"name": person.name, "role": person.role.value, "organization": person.organization} for person in question.people],
+                "rapporteurs": [person_payload(person) for person in question.rapporteurs],
+                "co_rapporteurs": [person_payload(person) for person in question.co_rapporteurs],
+                "other_people": [person_payload(person) for person in question.people if person.role not in (Role.RAPPORTEUR, Role.CO_RAPPORTEUR)],
             }
             for question in api.list_questions(study_group, period)
         ]

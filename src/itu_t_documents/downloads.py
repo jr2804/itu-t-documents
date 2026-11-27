@@ -26,7 +26,7 @@ def download_document(
     *,
     file_format: DocFormat = DocFormat.PDF,
     language: DocLanguage = DocLanguage.ENGLISH,
-    output: Path | None = None,
+    output_file: Path | None = None,
 ) -> Path:
     """Download a document, reusing the cached copy when possible.
 
@@ -38,7 +38,7 @@ def download_document(
         ref: The identity of the document.
         file_format: The requested format.
         language: The requested language.
-        output: A path to write the document to. Defaults to the file cache.
+        output_file: A path to write the document to. Defaults to the file cache.
 
     Returns:
         The path of the downloaded document.
@@ -52,11 +52,11 @@ def download_document(
     """
     cached = cache.find(ref, file_format, language)
     if cached is not None:
-        if output is None:
+        if output_file is None:
             return cached
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(cached.read_bytes())
-        return output
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(cached.read_bytes())
+        return output_file
 
     metadata = fetch_document_detail(client, ref)
     candidates = [file for file in metadata.files if file.file_format is file_format and file.language is language]
@@ -86,8 +86,8 @@ def download_document(
         extension=target.extension,
     )
     store.store_detail(metadata)
-    if output is not None:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(content)
-        return output
+    if output_file is not None:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(content)
+        return output_file
     return stored

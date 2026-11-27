@@ -23,7 +23,8 @@ their identifier embeds the meeting date and a sub-type such as ``GEN``.
 
 The study period an identifier names is a ``StudyPeriod`` of
 ``models/study_periods.py``; what the ITU-T tells about a document is
-``DocumentMetadata`` of ``models/metadata.py``.
+``DocumentMetadata`` of ``models/metadata.py``. The URLs and the rendition
+tables live in :mod:`document_urls` and :mod:`document_formats`.
 """
 
 from __future__ import annotations
@@ -33,37 +34,29 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from itu_t_documents.models.document_formats import _TYPE_PATHS, default_extension
+from itu_t_documents.models.document_urls import BASE_URL, LANGUAGE, MEETING_DOC_URL, detail_url
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, DocVisibility
 from itu_t_documents.models.study_periods import StudyPeriod
+
+__all__ = [
+    "BASE_URL",
+    "LANGUAGE",
+    "MEETING_DOC_URL",
+    "DocumentRef",
+    "MeetingId",
+    "default_extension",
+    "detail_url",
+]
 
 #: ITU-T document identifier, e.g. ``T25-SG12-261015-TD-GEN-0520``.
 _DOCUMENT_ID_RE = re.compile(
     r"^T(?P<period>\d{2})-SG(?P<group>\d{1,3})"
     r"(?:-(?P<meeting>\d{6}))?"
-    r"-(?P<type>TD|COL|R|C)"
+    r"-(?P<type>" + "|".join(doc_type.value for doc_type in DocType) + r")"
     r"(?:-(?P<subtype>[A-Z0-9]+))?"
     r"-(?P<number>\d{4})$"
 )
-
-#: Extension the DMS uses for each download format by default. A document is
-#: published in the format it was submitted in, so a Word document may also be
-#: a ``.doc`` or a ``.msw`` file; the extension of the download URL is the
-#: authoritative one.
-_FORMAT_EXTENSIONS: dict[DocFormat, str] = {
-    DocFormat.WORD: "docx",
-    DocFormat.PDF: "pdf",
-    DocFormat.ZIP: "zip",
-    DocFormat.HTML: "htm",
-}
-
-
-#: DMS path segment and visibility for each document type.
-_TYPE_PATHS: dict[DocType, tuple[str, DocVisibility]] = {
-    DocType.CONTRIBUTION: ("c", DocVisibility.TIES),
-    DocType.TEMPORARY_DOCUMENT: ("td", DocVisibility.INTERNAL),
-    DocType.COLLECTIVE_LETTER: ("col", DocVisibility.PUBLIC),
-    DocType.REPORT: ("r", DocVisibility.TIES),
-}
 
 
 class MeetingId(BaseModel):
@@ -164,11 +157,11 @@ class DocumentRef(BaseModel):
                 raise ValueError("temporary documents require a meeting")
             path = f"{path}/{self.meeting.code}/{self.subtype or 'GEN'}"
         marker = "!!" if revision is None else f"!R{revision}!"
-        return f"https://www.itu.int{path}/{self.document_id}{marker}{file_format.value}-{language.value}.{suffix}"
+        return f"{BASE_URL}{path}/{self.document_id}{marker}{file_format.value}-{language.value}.{suffix}"
 
     def detail_url(self) -> str:
         """Build the URL of the DMS detail page for this document."""
-        return f"https://www.itu.int/md/meetingdoc.asp?lang=en&parent={self.document_id}"
+        return detail_url(self.document_id)
 
     @classmethod
     def parse(cls, document_id: str) -> DocumentRef:
@@ -191,15 +184,3 @@ class DocumentRef(BaseModel):
             subtype=match["subtype"],
             meeting=meeting,
         )
-
-
-def default_extension(file_format: DocFormat) -> str:
-    """Return the file name extension the DMS uses for a format by default.
-
-    Args:
-        file_format: The download format.
-
-    Returns:
-        The extension, without a leading dot.
-    """
-    return _FORMAT_EXTENSIONS[file_format]

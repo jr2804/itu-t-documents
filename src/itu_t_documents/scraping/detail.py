@@ -13,7 +13,8 @@ import re
 from datetime import date
 
 from itu_t_documents.models.metadata import DocumentFile
-from itu_t_documents.scraping.pages import parse_page
+from itu_t_documents.scraping.pages import parse_page, scraping_error
+from itu_t_documents.urls import BASE_URL
 
 #: Pattern of the format and language suffix of a download URL. The DMS
 #: separates the identifier from the suffix with ``!!`` and replaces the
@@ -27,7 +28,7 @@ _SIZE_RE = re.compile(r"(?P<size>\d[\d\s.,]*)\s*bytes", re.IGNORECASE)
 _TITLE_RE = re.compile(r"\[(?P<number>[^\]]+)\]\s*(?P<title>.*)", re.DOTALL)
 
 
-def parse_files(page_html: str, base_url: str = "https://www.itu.int") -> list[DocumentFile]:
+def parse_files(page_html: str, base_url: str = BASE_URL) -> list[DocumentFile]:
     """Parse the available renditions of a document.
 
     Args:
@@ -36,10 +37,13 @@ def parse_files(page_html: str, base_url: str = "https://www.itu.int") -> list[D
 
     Returns:
         One entry per available rendition.
+
+    Raises:
+        ScrapingError: When the page cannot be read.
     """
     tree = parse_page(page_html)
     if tree is None:
-        return []
+        raise scraping_error("document detail", page_html)
     files: list[DocumentFile] = []
     seen: set[str] = set()
     for row in tree.xpath("//tr[count(td) > 1][.//a[contains(@href, '/dms_')]]"):
@@ -92,10 +96,13 @@ def parse_title(page_html: str) -> str:
 
     Returns:
         The title of the document, without the document number.
+
+    Raises:
+        ScrapingError: When the page cannot be read.
     """
     tree = parse_page(page_html)
     if tree is None:
-        return ""
+        raise scraping_error("document detail", page_html)
     for cell in tree.xpath("//td[@colspan]"):
         text = re.sub(r"\s+", " ", cell.text_content()).strip()
         match = _TITLE_RE.match(text)

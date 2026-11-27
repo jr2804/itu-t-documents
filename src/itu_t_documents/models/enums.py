@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+#: Code the ITU-T uses for the plenary of a study group.
+PLENARY_CODE = "PLEN"
+
 
 class DocFormat(StrEnum):
     """File formats offered by the ITU-T DMS for a document.
@@ -76,10 +79,14 @@ class DocType(StrEnum):
 class DocVisibility(StrEnum):
     """Access level of a document in the ITU-T DMS.
 
-    The ITU-T DMS exposes documents under three different path prefixes.
-    ``PUBLIC`` documents are downloadable without a TIES account, the other
-    two require an authenticated session. The member value is the path
-    segment used by the ITU-T download URLs.
+    The ITU-T DMS exposes documents under three different path prefixes. The
+    member value is the path segment used by the ITU-T download URLs.
+
+    ``PUBLIC`` is the access level of the *metadata*: the number, the title
+    and the sources of a collective letter are readable without an account.
+    The download itself goes through the access policy of the DMS and needs
+    a TIES session, also for a collective letter — the package authenticates
+    for every download.
     """
 
     PUBLIC = "pub"

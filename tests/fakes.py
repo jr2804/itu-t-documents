@@ -9,16 +9,13 @@ from pathlib import Path
 import httpx
 
 from itu_t_documents.http.client import ItuClient
+from itu_t_documents.models.documents import _DOCUMENT_ID_RE
 
 #: The bytes a fake document download returns.
 DOCUMENT_BYTES = b"document-bytes"
 
 #: The page the access policy answers for a document outside the membership.
 DENIED_PAGE = b"<html><body><h2>401 - Unauthorized: Access is denied due to invalid credentials.</h2></body></html>"
-
-#: Pattern of a document identifier in the ``parent`` parameter.
-_DOCUMENT_ID_RE = re.compile(r"T\d{2}-SG\d{1,3}(-\d{6})?-(TD|COL|R|C)(-[A-Z0-9]+)?-\d{4}")
-
 
 class FakeClient(ItuClient):
     """Serves the recorded fixtures instead of contacting the ITU-T web site."""
@@ -132,13 +129,15 @@ class FakeClient(ItuClient):
 <tr><td>WP1/{number}</td><td>A working group of study group {number}</td></tr>
 </table></body></html>"""
 
-    def _listing(self, name: str) -> str:
-        """Return a listing whose reported item count matches its rows.
+    def _listing(self, name: str, *, reported_count: int | None = None) -> str:
+        """Return a listing, with an optionally overridden reported count.
 
-        The recorded fixtures hold an excerpt of the listings of the ITU-T
-        web site, so the number of items they report is the number of the
-        whole listing.
+        The recorded fixtures hold excerpts of the ITU-T listings, so their
+        reported count is the count of the whole listing rather than of the
+        rows they hold. By default the count is rewritten to the rows the
+        fixture actually carries; ``reported_count`` lets a test keep the
+        mismatch the live site would show.
         """
         page = self._read(name)
-        rows = page.count('name="chkFile"')
-        return re.sub(r"(Results:<strong>)\d+(</strong>)", rf"\g<1>{rows}\g<2>", page)
+        count = page.count('name="chkFile"') if reported_count is None else reported_count
+        return re.sub(r"(Results:<strong>)\d+(</strong>)", rf"\g<1>{count}\g<2>", page)

@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, Any
 
 from cyclopts import Parameter
 
-# Application name for environment variables
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
+
 APP_NAME_UPPERCASE = "ITU_T_DOCUMENTS"
 
-# Global options
+
+def _enum_value(enum_type: type[DocFormat] | type[DocLanguage] | type[DocType], tokens: Sequence[Any]) -> Any:
+    """Convert the value cyclopts parsed into the enumeration member."""
+    return enum_type(str(tokens[0].value).upper())
+
 
 StudyGroup = Annotated[
     int,
@@ -52,9 +58,12 @@ Meeting = Annotated[
 ]
 
 DocTypeOption = Annotated[
-    str | None,
+    DocType | None,
     Parameter(
         name="--type",
+        choices=[doc_type.value for doc_type in DocType],
+        converter=lambda _type, tokens: _enum_value(DocType, tokens),
+        show_default=False,
         help="Document type: TD (temporary document), C (contribution), COL (collective letter), R (report)",
     ),
 ]
@@ -86,6 +95,14 @@ Limit = Annotated[
     ),
 ]
 
+LastMeetings = Annotated[
+    int,
+    Parameter(
+        name="--last-meetings",
+        help="How many of the most recent meetings to count",
+    ),
+]
+
 DocumentId = Annotated[
     str,
     Parameter(
@@ -95,18 +112,24 @@ DocumentId = Annotated[
 ]
 
 FileFormat = Annotated[
-    str,
+    DocFormat,
     Parameter(
         name="--format",
-        help="File format: PDF, MSW (Word), ZIP or HTM",
+        choices=[file_format.value for file_format in DocFormat],
+        converter=lambda _type, tokens: _enum_value(DocFormat, tokens),
+        show_default=False,
+        help="File format: PDF, MSW (Word), ZIP or HTM. Defaults to PDF.",
     ),
 ]
 
 Language = Annotated[
-    str,
+    DocLanguage,
     Parameter(
         name="--language",
-        help="Language code: E (English), F (French), S (Spanish), A (Arabic), C (Chinese), R (Russian)",
+        choices=[language.value for language in DocLanguage],
+        converter=lambda _type, tokens: _enum_value(DocLanguage, tokens),
+        show_default=False,
+        help="Language code: E (English), F (French), S (Spanish), A (Arabic), C (Chinese), R (Russian). Defaults to E.",
     ),
 ]
 

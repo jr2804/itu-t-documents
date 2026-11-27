@@ -42,3 +42,13 @@ class UnknownEntityError(ItuError):
     period to period. The catalogue knows them and refuses the ones that do
     not exist.
     """
+
+
+class ScrapingError(ItuError):
+    """Raised when a page of the ITU-T cannot be read.
+
+    The text of a page is untrusted input: the ITU-T writes its dates and
+    its labels in its own way, and it changes them. A page that cannot be
+    read is named in the error, together with the text that could not be
+    parsed, so that the failure is a message and not a traceback.
+    """

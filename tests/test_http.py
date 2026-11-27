@@ -7,7 +7,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from itu_t_documents.auth.ties import AuthenticationError
+from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, AuthenticationError
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.http.client import PAGE_SIZE, ItuHttpClient, cache_file, decode
 
@@ -66,8 +66,87 @@ def test_authenticate_without_credentials(tmp_path: Path) -> None:
         client.authenticate()
 
 
+def test_max_concurrency_reaches_the_http_clients(tmp_path: Path) -> None:
+    """The configured connection limit is applied to both clients."""
+    with ItuHttpClient(Settings(cache_dir=tmp_path, max_concurrency=7)) as client:
+        for http_client in (client.cached_client, client.session_client):
+            transport = http_client._transport
+            transport = getattr(transport, "next_transport", transport)
+            pool = getattr(transport, "_pool", None)
+            assert getattr(pool, "_max_connections", None) == 7
+
+
 def test_cache_file_path(tmp_path: Path) -> None:
     """The raw HTTP cache lives in the cache directory."""
     settings = Settings(cache_dir=tmp_path)
 
     assert cache_file(settings) == tmp_path / "http-cache.sqlite"
+
+
+SAML_REQUEST_PAGE = f"""<html><body><form action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
+<input type="hidden" name="{SAML_REQUEST_FIELD}" value="PHNhbWw+"/></form></body></html>"""
+
+
+SAML_RESPONSE_PAGE = """<html><body><form action="https://auth.itu.int/saml/sp/profile/post/acs">
+<input type="hidden" name="{SAML_RESPONSE_FIELD}" value="PHNhbWw+"/></form></body></html>"""
+
+
+DUMMY_PAGE = """<html><body onload="document.forms[0].submit()">
+<form method="POST" action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
+<input type="hidden" name="dummy" value="92b6ecc7"/></form></body></html>"""
+
+
+def test_http_client_authenticates_with_credentials(tmp_path) -> None:
+    """A login is performed with the configured credentials."""
+    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
+    client = ItuHttpClient(settings)
+    client._session_client = httpx.Client(
+        transport=httpx.MockTransport(_itu_handler),
+        follow_redirects=True,
+    )
+
+    session = client.authenticate()
+
+    assert session is client.session_client
+    client.close()
+
+
+def test_http_client_reuses_the_authenticator(tmp_path) -> None:
+    """A second login reuses the authenticator of the client."""
+    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
+    client = ItuHttpClient(settings)
+    client._session_client = httpx.Client(
+        transport=httpx.MockTransport(_itu_handler),
+        follow_redirects=True,
+    )
+
+    client.authenticate()
+    authenticator = client._authenticator
+    client.authenticate()
+
+    assert client._authenticator is authenticator
+    client.close()
+
+
+def _itu_handler(request: httpx.Request) -> httpx.Response:
+    """Simulate the ITU-T access policy and its identity provider."""
+    url = str(request.url)
+    if request.method == "GET" and ("auth.itu.int" in url or url.startswith("https://www.itu.int/md/")):
+        return httpx.Response(200, text=SAML_REQUEST_PAGE)
+    if request.method == "POST" and "redirectorpost" in url:
+        if b"SAMLRequest" in request.content:
+            return httpx.Response(200, text="<html><body>logon</body></html>")
+        return httpx.Response(200, text=SAML_RESPONSE_PAGE)
+    if request.method == "POST" and url == LOGON_URL:
+        return httpx.Response(200, text=DUMMY_PAGE)
+    if request.method == "POST" and "post/acs" in url:
+        return httpx.Response(302, headers={"location": "https://www.itu.int/md/"})
+    return httpx.Response(200, content=b"page")
+
+
+def test_http_client_authenticates(tmp_path: Path) -> None:
+    """A login is performed when credentials are configured."""
+    settings = Settings(cache_dir=tmp_path, ties_username="you@example.org", ties_password="secret")
+
+    with ItuHttpClient(settings) as client:
+        assert client.settings.has_credentials()

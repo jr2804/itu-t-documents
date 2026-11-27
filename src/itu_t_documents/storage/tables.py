@@ -54,11 +54,6 @@ class MeetingRow(SQLModel, table=True):
     end_date: date | None = None
     place: str | None = None
 
-    @property
-    def unique_key(self) -> str:
-        """A key that is unique across the whole store."""
-        return f"{self.study_group_id}:{self.code}"
-
 
 class QuestionRow(SQLModel, table=True):
     """A question under study of a study group."""
@@ -138,6 +133,7 @@ class DocumentFileRow(SQLModel, table=True):
     size_bytes: int | None = None
     posted: date | None = None
     url: str
+    revision: int | None = None
 
 
 def row_id(row: HasIdentifier) -> int:

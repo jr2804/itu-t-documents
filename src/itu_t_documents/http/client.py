@@ -1,12 +1,9 @@
 """HTTP access to the ITU-T document management system.
 
-Two HTTP clients are used:
-
-* a **cached** client for the public meeting document pages, backed by
-  :mod:`hishel` so that repeated metadata queries are answered from the local
-  SQLite cache and never require authentication again,
-* a **session** client that keeps the TIES cookies and is used for the
-  authentication handshake and for downloading protected documents.
+Two HTTP clients are used: a **cached** client for the public meeting document
+pages, backed by :mod:`hishel`, so that repeated metadata queries are answered
+from the local SQLite cache without authentication again; and a **session**
+client that keeps the TIES cookies for the handshake and the downloads.
 """
 
 from __future__ import annotations
@@ -77,6 +74,7 @@ class ItuHttpClient:
         self.settings = settings or Settings()
         self._cache_dir = self.settings.resolved_cache_dir
         self._cache_dir.mkdir(parents=True, exist_ok=True)
+        limits = httpx.Limits(max_connections=self.settings.max_concurrency, max_keepalive_connections=self.settings.max_concurrency)
         self._cached_client: httpx.Client = CacheClient(
             storage=SqliteStorage(
                 database_path=str(self._cache_dir / HTTP_CACHE_FILE),
@@ -86,12 +84,14 @@ class ItuHttpClient:
             follow_redirects=True,
             headers={"User-Agent": self.settings.user_agent},
             verify=self.settings.verify_tls,
+            limits=limits,
         )
         self._session_client = httpx.Client(
             timeout=self.settings.timeout,
             follow_redirects=True,
             headers={"User-Agent": self.settings.user_agent},
             verify=self.settings.verify_tls,
+            limits=limits,
         )
         for client in (self._cached_client, self._session_client):
             client.cookies.set("ITUDMS_PageSize", str(PAGE_SIZE), domain="www.itu.int")

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 #: The study periods of the ITU-T. A period spans four years and starts in
 #: 2005, 2009, 2013, 2017, 2022, 2025 and 2029 — the period that was to start
@@ -126,10 +126,9 @@ class StudyPeriod(BaseModel):
 
     @field_validator("end_year")
     @classmethod
-    def _check_end_year(cls, value: int, info: object) -> int:
+    def _check_end_year(cls, value: int, info: ValidationInfo) -> int:
         """Ensure the period spans a sensible number of years."""
-        data = getattr(info, "data", {}) or {}
-        start = data.get("start_year")
+        start = info.data.get("start_year")
         if isinstance(start, int) and value < start:
             raise ValueError("end_year must not precede start_year")
         return value

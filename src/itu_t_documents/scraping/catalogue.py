@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import re
 
-from itu_t_documents.models.catalogue import PLENARY_CODE, StructureGroup, StudyGroup, StudyGroupStructure
+from itu_t_documents.models.catalogue import StructureGroup, StudyGroup, StudyGroupStructure
+from itu_t_documents.models.enums import PLENARY_CODE
 from itu_t_documents.models.questions import Question, WorkingGroup
 from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping.pages import parse_page

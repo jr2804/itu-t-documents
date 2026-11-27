@@ -11,12 +11,14 @@ from sqlmodel import select
 
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.models.documents import DocumentRef, MeetingId
-from itu_t_documents.models.enums import DocType, Role
-from itu_t_documents.models.metadata import DocumentMetadata
+from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType, Role
+from itu_t_documents.models.metadata import DocumentFile, DocumentMetadata
 from itu_t_documents.models.questions import Person, Question, WorkingGroup
 from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.storage.database import MetadataStore
-from itu_t_documents.storage.tables import DocumentQuestionRow, DocumentRow, DocumentSourceRow, PersonRow, QuestionRow
+from itu_t_documents.storage.files import FileCache
+from itu_t_documents.storage.queries import find_documents
+from itu_t_documents.storage.tables import DocumentFileRow, DocumentQuestionRow, DocumentRow, DocumentSourceRow, MeetingRow, PersonRow, QuestionRow, row_id
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -66,6 +68,52 @@ def test_store_question_and_people(store: MetadataStore) -> None:
     assert len(people) == 1
     assert people[0].name == "Lars Birger NIELSEN"
     assert people[0].role == Role.RAPPORTEUR.value
+
+
+def test_storing_a_question_replaces_its_people(store: MetadataStore) -> None:
+    """A re-sync of a question does not leave people of an older structure."""
+    question = Question(
+        number=5,
+        study_group=12,
+        title="Telephonometric methodologies",
+        working_group=WorkingGroup.parse("WP1/12"),
+        people=[Person(name="Lars Birger NIELSEN", role=Role.RAPPORTEUR)],
+    )
+    store.store_question(question, PERIOD.label)
+    updated = question.model_copy(update={"people": [Person(name="Ada LOVELACE", role=Role.EDITOR)]})
+
+    store.store_question(updated, PERIOD.label)
+
+    with store.session() as session:
+        people = session.exec(select(PersonRow)).all()
+
+    assert [person.name for person in people] == ["Ada LOVELACE"]
+
+
+def test_find_documents_of_a_meeting_holds_only_its_documents(store: MetadataStore) -> None:
+    """The meeting filter selects the documents of that meeting, not of the study group."""
+    store.store_document(_document(192, DocType.CONTRIBUTION, meeting=MeetingId.from_code("260609")))
+    store.store_document(_document(193, DocType.CONTRIBUTION, meeting=MeetingId.from_code("261015")))
+    store.store_document(_document(194, DocType.CONTRIBUTION))
+
+    records = find_documents(store, study_group=12, meeting="260609")
+
+    assert [record.document_id for record in records] == ["T25-SG12-C-0192"]
+
+
+def test_store_detail_keeps_a_revision_beside_the_original(store: MetadataStore) -> None:
+    """A revision of a rendition does not overwrite the original."""
+    ref = DocumentRef.parse("T25-SG12-C-0192")
+    original = DocumentFile(format_code="MSW", language_code="E", url="https://www.itu.int/a.docx")
+    revision = DocumentFile(format_code="MSW", language_code="E", url="https://www.itu.int/a-R1.docx", revision=1)
+
+    store.store_detail(DocumentMetadata(ref=ref, files=[original]))
+    store.store_detail(DocumentMetadata(ref=ref, files=[revision]))
+
+    with store.session() as session:
+        rows = session.exec(select(DocumentFileRow).where(DocumentFileRow.document_id == 1)).all()
+
+    assert sorted(row.revision if row.revision is not None else 0 for row in rows) == [0, 1]
 
 
 def test_store_detail_keeps_what_the_listing_told(store: MetadataStore) -> None:
@@ -158,3 +206,33 @@ def store(tmp_path: Path) -> Iterator[MetadataStore]:
 def _settings(tmp_path: Path) -> Settings:
     """Return settings pointing at an isolated cache directory."""
     return Settings(cache_dir=tmp_path)
+
+
+def test_file_cache_extensions(tmp_path: Path) -> None:
+    """Every format has its own file extension."""
+    cache = FileCache(Settings(cache_dir=tmp_path))
+    ref = DocumentRef.parse("T25-SG12-C-0192")
+
+    assert cache.path_for(ref, DocFormat.WORD, DocLanguage.ENGLISH).name == "MSW-E.docx"
+    assert cache.path_for(ref, DocFormat.PDF, DocLanguage.FRENCH).name == "PDF-F.pdf"
+    assert cache.path_for(ref, DocFormat.ZIP, DocLanguage.SPANISH).name == "ZIP-S.zip"
+    assert cache.path_for(ref, DocFormat.HTML, DocLanguage.ENGLISH).name == "HTM-E.htm"
+
+
+def test_store_rejects_a_row_that_was_not_persisted() -> None:
+    """A row without a primary key is refused."""
+
+    class Unpersisted:
+        """A row that was never written."""
+
+        id = None
+
+    with pytest.raises(RuntimeError):
+        row_id(Unpersisted())  # type: ignore[arg-type]
+
+
+def test_meeting_row_unique_key() -> None:
+    """The key of a meeting is unique across the store."""
+    meeting = MeetingRow(study_group_id=3, code="270119", start_date=date(2027, 1, 19))
+
+    assert (meeting.study_group_id, meeting.code) == (3, "270119")

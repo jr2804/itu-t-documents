@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Any
-
+from itu_t_documents.mcp.payloads import (
+    CatalogueEntryPayload,
+    OtherGroupPayload,
+    PeriodPayload,
+    StructurePayload,
+    StructureQuestionPayload,
+    StudyGroupPayload,
+    WorkingGroupPayload,
+)
 from itu_t_documents.mcp.support import open_api, resolve_period
 from itu_t_documents.models.study_periods import StudyPeriod
+from itu_t_documents.urls import DEFAULT_STUDY_GROUP
 
 
-def list_periods() -> list[dict[str, Any]]:
+def list_periods() -> list[PeriodPayload]:
     """List the study periods of the ITU-T.
 
     Use this to find the study period a document belongs to. A period is
@@ -30,7 +38,7 @@ def list_periods() -> list[dict[str, Any]]:
     ]
 
 
-def list_study_groups(study_period: str | None = None) -> list[dict[str, Any]]:
+def list_study_groups(study_period: str | None = None) -> list[StudyGroupPayload]:
     """List the study groups of a study period.
 
     The study groups change from period to period, so they are read from the
@@ -57,7 +65,7 @@ def list_study_groups(study_period: str | None = None) -> list[dict[str, Any]]:
         ]
 
 
-def list_structure(study_group: int = 12, study_period: str | None = None) -> dict[str, Any]:
+def list_structure(study_group: int = DEFAULT_STUDY_GROUP, study_period: str | None = None) -> StructurePayload:
     """Show the structure of an ITU-T study group.
 
     The structure holds the plenary, the working groups, the questions under
@@ -75,20 +83,23 @@ def list_structure(study_group: int = 12, study_period: str | None = None) -> di
     period = resolve_period(study_period)
     with open_api() as api:
         structure = api.catalogue.structure(study_group, period)
+    working_groups: list[WorkingGroupPayload] = [{"code": group.code, "name": group.name} for group in structure.working_groups]
+    questions: list[StructureQuestionPayload] = [
+        {"code": question.code, "number": question.number, "title": question.title, "working_group": question.working_group.code}
+        for question in structure.questions
+    ]
+    other_groups: list[OtherGroupPayload] = [{"code": group.code, "title": group.title, "kind": group.kind} for group in structure.other_groups]
     return {
         "study_group": structure.study_group.code,
         "study_period": structure.period.label,
         "plenary": structure.plenary.code if structure.plenary else None,
-        "working_groups": [{"code": group.code, "name": group.name} for group in structure.working_groups],
-        "questions": [
-            {"code": question.code, "number": question.number, "title": question.title, "working_group": question.working_group.code}
-            for question in structure.questions
-        ],
-        "other_groups": [{"code": group.code, "title": group.title, "kind": group.kind} for group in structure.other_groups],
+        "working_groups": working_groups,
+        "questions": questions,
+        "other_groups": other_groups,
     }
 
 
-def search_structure(text: str, study_period: str | None = None) -> list[dict[str, Any]]:
+def search_structure(text: str, study_period: str | None = None) -> list[CatalogueEntryPayload]:
     """Search the working groups, questions and other groups of the ITU-T.
 
     Use this to find the group that handles a topic, e.g. "speech" or

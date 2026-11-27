@@ -60,6 +60,17 @@ class DocumentFile(BaseModel):
         return default_extension(file_format)
 
 
+class MeetingHeader(BaseModel):
+    """The descriptive header of a meeting document page."""
+
+    model_config = ConfigDict(frozen=True)
+
+    study_period: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    place: str | None = None
+
+
 class DocumentMetadata(BaseModel):
     """Metadata scraped for a document from the ITU-T DMS listing and detail pages."""
 
@@ -71,7 +82,6 @@ class DocumentMetadata(BaseModel):
     revision: int | None = None
     files: list[DocumentFile] = Field(default_factory=list)
     detail_url: str = ""
-    summary: str | None = None
 
     @property
     def document_id(self) -> str:

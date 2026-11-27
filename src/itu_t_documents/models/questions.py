@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from itu_t_documents.models.enums import Role
+from itu_t_documents.models.enums import PLENARY_CODE, Role
 
 
 class WorkingGroup(BaseModel):
@@ -23,7 +23,7 @@ class WorkingGroup(BaseModel):
     @property
     def is_plenary(self) -> bool:
         """Whether this working group is the plenary of the study group."""
-        return self.code.upper() == "PLEN"
+        return self.code.upper() == PLENARY_CODE
 
     @classmethod
     def parse(cls, code: str) -> WorkingGroup:

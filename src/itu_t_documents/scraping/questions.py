@@ -12,9 +12,9 @@ import re
 
 from lxml.html import HtmlElement
 
-from itu_t_documents.models.enums import Role
+from itu_t_documents.models.enums import PLENARY_CODE, Role
 from itu_t_documents.models.questions import Person, Question, WorkingGroup
-from itu_t_documents.scraping.pages import parse_page
+from itu_t_documents.scraping.pages import parse_page, scraping_error
 
 #: Pattern of the question and working group cell, e.g. ``Q5/12  (WP1/12)``.
 _QUESTION_RE = re.compile(r"Q(?P<number>\d+)\s*/\s*(?P<group>\d+)\s*(?:\((?P<working_group>[^)]+)\))?")
@@ -37,10 +37,13 @@ def parse_questions(page_html: str, study_group: int) -> list[Question]:
 
     Returns:
         The questions found, ordered by question number.
+
+    Raises:
+        ScrapingError: When the page or a person on it cannot be read.
     """
     tree = parse_page(page_html)
     if tree is None:
-        return []
+        raise scraping_error("questions page", page_html)
     people: dict[int, list[Person]] = {}
     titles: dict[int, str] = {}
     working_groups: dict[int, str] = {}
@@ -57,7 +60,7 @@ def parse_questions(page_html: str, study_group: int) -> list[Question]:
             continue
         number = int(match["number"])
         titles.setdefault(number, _span_text(cells[0], "lblQuestion"))
-        working_groups.setdefault(number, (match["working_group"] or "PLEN").strip())
+        working_groups.setdefault(number, (match["working_group"] or PLENARY_CODE).strip())
 
         person = _parse_person(cells[1])
         if person is not None:
@@ -68,7 +71,7 @@ def parse_questions(page_html: str, study_group: int) -> list[Question]:
             number=number,
             study_group=study_group,
             title=titles.get(number, ""),
-            working_group=WorkingGroup.parse(working_groups.get(number, "PLEN")),
+            working_group=WorkingGroup.parse(working_groups.get(number, PLENARY_CODE)),
             people=people.get(number, []),
         )
         for number in sorted(titles)
@@ -82,8 +85,11 @@ def _parse_person(cell: HtmlElement) -> Person | None:
     last_name = _span_text(cell, "lblLName")
     name = _clean(f"{first_name} {last_name}")
     role_text = _span_text(cell, "lblRole")
-    if not name or not role_text:
+    if not name and not role_text:
         return None
+    role = _ROLE_NAMES.get(role_text.lower()) if role_text else None
+    if not name or role is None:
+        raise scraping_error("question person", f"{name} {role_text}")
 
     email = ""
     links = cell.xpath(".//a[contains(@id, 'linkemail')]")
@@ -98,7 +104,7 @@ def _parse_person(cell: HtmlElement) -> Person | None:
 
     return Person(
         name=name,
-        role=_ROLE_NAMES.get(role_text.lower(), Role.CONTRIBUTOR),
+        role=role,
         organization=_span_text(cell, "lblCompany") or None,
         country=country or None,
         email=email or None,

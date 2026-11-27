@@ -2,22 +2,45 @@
 
 from __future__ import annotations
 
+import sys
+from collections.abc import Iterable
+from typing import Any
+
+import httpx
 from cyclopts import App
 
 from itu_t_documents.__about__ import __version__
 from itu_t_documents.cli import commands
+from itu_t_documents.errors import ItuError
 
-app = App(
+
+class ItuApp(App):
+    """The command line application, with one failure shape."""
+
+    def __call__(self, tokens: None | str | Iterable[str] = None, **kwargs: Any) -> Any:
+        """Run the application and turn domain failures into exit code 1.
+
+        Cyclopts keeps the usage errors: an unknown option, a missing
+        argument or a value outside the choices of an enumeration exits 2
+        before a command runs.
+        """
+        try:
+            return super().__call__(tokens, **kwargs)
+        except (ItuError, ValueError, FileNotFoundError) as error:
+            print(f"itu-t-documents: {error}", file=sys.stderr)
+            raise SystemExit(1) from error
+        except httpx.HTTPError as error:
+            print(f"itu-t-documents: cannot reach the ITU-T: {error}", file=sys.stderr)
+            raise SystemExit(1) from error
+
+
+app = ItuApp(
     name="itu-t-documents",
     help="Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP.",
     version=__version__,
     version_flags=["--version", "-v"],
 )
 
-# Register commands. Commands are plain functions in commands.py — no
-# @app.command decorators there, no import of `app`: this avoids the
-# circular import (commands.py <-> app.py) and keeps pyreorder from
-# re-sorting this file into a broken state.
 app.command(commands.default, name="default")
 app.command(commands.auth)
 app.command(commands.download)
@@ -30,10 +53,8 @@ app.command(commands.search)
 app.command(commands.structure)
 app.command(commands.study_groups, name="study-groups")
 app.command(commands.sync)
-app.default(commands.default)  # `itu-t-documents` with no arguments
-
-# Enable `itu-t-documents --install-completion`.
-app.register_install_completion_command()
+app.command(commands.top_sources, name="top-sources")
+app.default(commands.default)
 
 
 def main() -> None:

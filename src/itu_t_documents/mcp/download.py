@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
+from itu_t_documents.mcp.payloads import DownloadPayload
 from itu_t_documents.mcp.support import open_api
 from itu_t_documents.models.documents import DocumentRef
 from itu_t_documents.models.enums import DocFormat, DocLanguage
@@ -15,7 +15,7 @@ def download_document(
     file_format: str = "PDF",
     language: str = "E",
     output_path: str | None = None,
-) -> dict[str, Any]:
+) -> DownloadPayload:
     """Download a document from the ITU-T document management system.
 
     The document has to be available as the requested format and language.
@@ -37,6 +37,6 @@ def download_document(
             ref,
             file_format=DocFormat(file_format.upper()),
             language=DocLanguage(language.upper()),
-            output=Path(output_path) if output_path else None,
+            output_file=Path(output_path) if output_path else None,
         )
         return {"path": str(path), "size_bytes": path.stat().st_size}

@@ -7,18 +7,12 @@ parameter that identifies the meeting and the document type.
 
 from __future__ import annotations
 
-from itu_t_documents.models.documents import DocumentRef, MeetingId
+from itu_t_documents.models.documents import BASE_URL, LANGUAGE, MEETING_DOC_URL, DocumentRef, MeetingId, detail_url
 from itu_t_documents.models.enums import DocType
 from itu_t_documents.models.study_periods import StudyPeriod
 
-#: Root of the ITU-T web site.
-BASE_URL = "https://www.itu.int"
-
-#: The meeting document application.
-MEETING_DOC_URL = f"{BASE_URL}/md/meetingdoc.asp"
-
-#: Language of the scraped pages.
-LANGUAGE = "en"
+#: The study group the CLI and the MCP tools use unless one is named.
+DEFAULT_STUDY_GROUP = 12
 
 #: Mapping of ITU-T study periods to the index used by the ``net4`` web apps.
 PERIOD_INDICES: dict[str, int] = {
@@ -172,15 +166,3 @@ def detail_url_for(ref: DocumentRef) -> str:
         The absolute URL of the detail page.
     """
     return detail_url(ref.document_id)
-
-
-def detail_url(document_id: str) -> str:
-    """Return the URL of the detail page of a document.
-
-    Args:
-        document_id: The DMS identifier of the document.
-
-    Returns:
-        The absolute URL of the detail page.
-    """
-    return f"{MEETING_DOC_URL}?lang={LANGUAGE}&parent={document_id}"

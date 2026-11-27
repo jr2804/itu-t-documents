@@ -15,9 +15,6 @@ from itu_t_documents.errors import UnknownEntityError
 from itu_t_documents.models.questions import Question, WorkingGroup
 from itu_t_documents.models.study_periods import StudyPeriod
 
-#: The code of the plenary of a study group.
-PLENARY_CODE = "PLEN"
-
 
 class StudyGroup(BaseModel):
     """An ITU-T study group of a study period.

@@ -27,7 +27,7 @@ The three interfaces are one package. Whoever can ask the MCP server something c
 | `documents_for_question` | `ItuDocuments.documents_for_question()` | `documents --question` |
 | `contributions_by_source` | `ItuDocuments.contributions_by_source()` | `documents --source` with `--type C` |
 | `search_documents` | `ItuDocuments.find_documents()` | `documents` |
-| `top_sources` | `ItuDocuments.top_sources()` | — no command yet |
+| `top_sources` | `ItuDocuments.top_sources()` | `top-sources` |
 | `download_document` | `ItuDocuments.download()` | `download` |
 | `list_periods` | `StudyPeriod.all()` | `periods` |
 | `list_study_groups` | `ItuCatalogue.study_groups()` | `study-groups` |
@@ -38,11 +38,11 @@ The table is binding. `tests/test_mcp_server.py` reads it and fails when a tool 
 
 The differences below are deliberate. Any other difference between a tool and its counterparts is a defect:
 
-- **Synchronising.** `documents_for_question`, `contributions_by_source` and `search_documents` synchronise the meetings they search before they query the store, because an agent has no tool to run `sync` itself. The command line separates the two: `sync` stores, `documents` reads the store.
+- **Synchronising.** `documents_for_question`, `contributions_by_source`, `search_documents` and `top_sources` synchronise only what the store lacks before they query it, because an agent has no tool to run `sync` itself. A study group with stored documents, and a meeting with stored documents, are answered without contacting the ITU-T. The command line separates the two: `sync` stores, `documents` and `top-sources` read the store.
 - **Limits.** `search_documents` returns at most 50 documents by default, to protect the context of the agent. `documents` returns every match until `--limit` says otherwise.
-- **`top_sources`** counts the `last_meetings` most recent meetings, where the API method takes their codes. It is the one tool without a command: `WITHOUT_COMMAND` in `tests/test_mcp_server.py` lists it, and that list only shrinks.
+- **`top_sources`** counts the `last_meetings` most recent stored meetings. The command takes the same option; the API method accepts either their codes or `last_meetings`.
 - **`download_document`** takes `document_id`, `file_format`, `language` and `output_path`. The options of the command are `--document`, `--format`, `--language` and `--output-file`.
-- **Errors.** A tool does not catch what the API raises: the server reports a failed call to the client. The command line reports an error its own way.
+- **Errors.** A tool does not catch what the API raises: the server reports a failed call to the client. The command line turns every domain failure into one line on standard error and exit code 1.
 - **Commands without a tool.** `auth`, `mcp`, `default` and `sync` exist on the command line only. They start, configure or feed the package; they do not ask it a question.
 
 ### The tool contract

@@ -20,7 +20,7 @@ from itu_t_documents.models.study_periods import StudyPeriod
 from tests.fakes import FakeClient
 
 #: The tools whose question the CLI cannot ask yet. The list only shrinks.
-WITHOUT_COMMAND = frozenset({"top_sources"})
+WITHOUT_COMMAND: frozenset[str] = frozenset()
 
 _ROW_RE = re.compile(r"^\|\s*`(?P<tool>[a-z_]+)`\s*\|\s*`(?P<owner>\w+)\.(?P<method>\w+)\(\)`\s*\|\s*(?P<command>[^|]+?)\s*\|\s*$", re.MULTILINE)
 
@@ -87,7 +87,7 @@ def test_only_the_mcp_command_of_the_cli_loads_the_mcp_package() -> None:
         if count:
             references[str(relative)] = count
 
-    assert references == {"cli/commands.py": 1}
+    assert references == {"cli/startup.py": 1}
 
 
 def _package_dir() -> Path:

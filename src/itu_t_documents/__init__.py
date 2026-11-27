@@ -16,6 +16,7 @@ from itu_t_documents.errors import (
     AuthenticationError,
     IncompleteListingError,
     ItuError,
+    ScrapingError,
     UnknownEntityError,
 )
 from itu_t_documents.models.catalogue import StructureGroup, StudyGroup, StudyGroupStructure
@@ -50,6 +51,7 @@ __all__ = [
     "Person",
     "Question",
     "Role",
+    "ScrapingError",
     "Settings",
     "SourceCount",
     "StructureGroup",

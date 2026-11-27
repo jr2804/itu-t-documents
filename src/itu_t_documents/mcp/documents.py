@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from itu_t_documents.mcp.payloads import document_payload
+from itu_t_documents.mcp.payloads import DocumentPayload, document_payload
 from itu_t_documents.mcp.support import open_api, resolve_period, sync_meetings
 from itu_t_documents.models.enums import DocType
+from itu_t_documents.urls import DEFAULT_STUDY_GROUP
 
 
 def documents_for_question(
     question: int,
-    study_group: int = 12,
+    study_group: int = DEFAULT_STUDY_GROUP,
     meeting: str | None = None,
     doc_type: str | None = None,
     study_period: str | None = None,
-) -> list[dict[str, Any]]:
+) -> list[DocumentPayload]:
     """Show the documents handled in a question of an ITU-T study group.
 
     Use this to answer "show me all TDs of Q5/12 at meeting XYZ": pass the
@@ -46,7 +45,7 @@ def documents_for_question(
         return [document_payload(record) for record in records]
 
 
-def contributions_by_source(source: str, study_group: int = 12, study_period: str | None = None) -> list[dict[str, Any]]:
+def contributions_by_source(source: str, study_group: int = DEFAULT_STUDY_GROUP, study_period: str | None = None) -> list[DocumentPayload]:
     """Show the contributions submitted by an organisation.
 
     Use this to answer "which contributions were made by company XYZ in study
@@ -70,7 +69,7 @@ def contributions_by_source(source: str, study_group: int = 12, study_period: st
 
 
 def search_documents(
-    study_group: int = 12,
+    study_group: int = DEFAULT_STUDY_GROUP,
     *,
     doc_type: str | None = None,
     meeting: str | None = None,
@@ -78,7 +77,7 @@ def search_documents(
     source: str | None = None,
     study_period: str | None = None,
     limit: int = 50,
-) -> list[dict[str, Any]]:
+) -> list[DocumentPayload]:
     """Search the documents of an ITU-T study group.
 
     Args:
