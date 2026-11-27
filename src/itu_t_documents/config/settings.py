@@ -149,9 +149,7 @@ class Settings(BaseSettings):
         """Order the setting sources: manifest, explicit values, environment, TOML file, secretspec."""
         explicit_values = cast(InitSettingsSource, init_settings).init_kwargs
         config_dir = resolve_config_dir(explicit_values.get("config_dir"))
-        manifest = resolve_secretspec_manifest(
-            explicit_values.get("secretspec_manifest"), config_dir=config_dir, settings_cls=settings_cls
-        )
+        manifest = resolve_secretspec_manifest(explicit_values.get("secretspec_manifest"), config_dir=config_dir, settings_cls=settings_cls)
         return (
             SecretspecManifestSource(settings_cls, manifest),
             init_settings,

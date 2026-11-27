@@ -17,6 +17,7 @@ DOCUMENT_BYTES = b"document-bytes"
 #: The page the access policy answers for a document outside the membership.
 DENIED_PAGE = b"<html><body><h2>401 - Unauthorized: Access is denied due to invalid credentials.</h2></body></html>"
 
+
 class FakeClient(ItuClient):
     """Serves the recorded fixtures instead of contacting the ITU-T web site."""
 

@@ -11,6 +11,18 @@ from itu_t_documents.auth.ties import LOGON_URL, SAML_REQUEST_FIELD, Authenticat
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.http.client import PAGE_SIZE, ItuHttpClient, cache_file, decode
 
+SAML_REQUEST_PAGE = f"""<html><body><form action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
+<input type="hidden" name="{SAML_REQUEST_FIELD}" value="PHNhbWw+"/></form></body></html>"""
+
+
+SAML_RESPONSE_PAGE = """<html><body><form action="https://auth.itu.int/saml/sp/profile/post/acs">
+<input type="hidden" name="{SAML_RESPONSE_FIELD}" value="PHNhbWw+"/></form></body></html>"""
+
+
+DUMMY_PAGE = """<html><body onload="document.forms[0].submit()">
+<form method="POST" action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
+<input type="hidden" name="dummy" value="92b6ecc7"/></form></body></html>"""
+
 
 def test_get_text_uses_the_cached_client(tmp_path: Path) -> None:
     """A page is fetched through the caching client."""
@@ -81,19 +93,6 @@ def test_cache_file_path(tmp_path: Path) -> None:
     settings = Settings(cache_dir=tmp_path)
 
     assert cache_file(settings) == tmp_path / "http-cache.sqlite"
-
-
-SAML_REQUEST_PAGE = f"""<html><body><form action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
-<input type="hidden" name="{SAML_REQUEST_FIELD}" value="PHNhbWw+"/></form></body></html>"""
-
-
-SAML_RESPONSE_PAGE = """<html><body><form action="https://auth.itu.int/saml/sp/profile/post/acs">
-<input type="hidden" name="{SAML_RESPONSE_FIELD}" value="PHNhbWw+"/></form></body></html>"""
-
-
-DUMMY_PAGE = """<html><body onload="document.forms[0].submit()">
-<form method="POST" action="https://login.itu.int/saml/idp/profile/redirectorpost/sso">
-<input type="hidden" name="dummy" value="92b6ecc7"/></form></body></html>"""
 
 
 def test_http_client_authenticates_with_credentials(tmp_path) -> None:

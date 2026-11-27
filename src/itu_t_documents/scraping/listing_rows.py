@@ -48,10 +48,7 @@ def parse_listing(
     rows = tree.xpath("//tr[count(td) > 3][.//input[@name='chkFile']]") if tree is not None else []
     if not rows and (tree is None or not tree.xpath("//input[@name='chkFile']")):
         raise scraping_error("document listing", page_html)
-    return [
-        _parse_row(row, study_period, study_group, doc_type, meeting)
-        for row in rows
-    ]
+    return [_parse_row(row, study_period, study_group, doc_type, meeting) for row in rows]
 
 
 def _parse_row(

@@ -30,10 +30,7 @@ def auth() -> None:
     """Check whether TIES credentials are configured and usable."""
     settings = Settings()
     if not settings.has_credentials():
-        raise AuthenticationError(
-            "no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD "
-            f"or store them in {settings.config_file}"
-        )
+        raise AuthenticationError(f"no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD or store them in {settings.config_file}")
     with ItuHttpClient(settings) as client:
         client.authenticate()
     print("TIES login succeeded.")

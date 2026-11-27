@@ -72,15 +72,6 @@ class QueryOperations:
             meetings = self._recent_meetings(study_group, study_period or StudyPeriod.current(), last_meetings)
         return top_sources(self.store, study_group, meetings, doc_types, limit)
 
-    def _recent_meetings(self: ItuDocuments, study_group: int, study_period: StudyPeriod, count: int) -> tuple[str, ...]:
-        """Return the codes of the most recent stored meetings of a study group."""
-        codes = {
-            record.meeting_code
-            for record in self.find_documents(study_group=study_group, study_period=study_period.label)
-            if record.meeting_code is not None
-        }
-        return tuple(sorted(codes, reverse=True)[:count])
-
     def documents_for_question(
         self: ItuDocuments,
         study_group: int,
@@ -111,3 +102,10 @@ class QueryOperations:
         study period is searched.
         """
         return self.find_documents(study_group=study_group, doc_type=DocType.CONTRIBUTION, source=source, study_period=study_period)
+
+    def _recent_meetings(self: ItuDocuments, study_group: int, study_period: StudyPeriod, count: int) -> tuple[str, ...]:
+        """Return the codes of the most recent stored meetings of a study group."""
+        codes = {
+            record.meeting_code for record in self.find_documents(study_group=study_group, study_period=study_period.label) if record.meeting_code is not None
+        }
+        return tuple(sorted(codes, reverse=True)[:count])

@@ -74,11 +74,6 @@ __all__ = [
 ]
 
 
-def _iter_forms(page_html: str) -> Iterator[tuple[str, dict[str, str]]]:
-    """Yield the forms of a TIES page; kept importable here for compatibility."""
-    yield from _iter_forms_from_forms(page_html)
-
-
 class TiesAuthenticator:
     """Performs the TIES login against the ITU-T DMS and keeps the session alive."""
 
@@ -184,3 +179,8 @@ class TiesAuthenticator:
 
         if not reached_consumer:
             raise AuthenticationError("TIES login did not reach the assertion consumer service")
+
+
+def _iter_forms(page_html: str) -> Iterator[tuple[str, dict[str, str]]]:
+    """Yield the forms of a TIES page; kept importable here for compatibility."""
+    yield from _iter_forms_from_forms(page_html)

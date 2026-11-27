@@ -46,6 +46,7 @@ Acts as simple long-term memory for the project.
 | 2026-11-27 | The sync of a study group reads the listing of the study period as well | The listing of a period holds the contributions that the listings of its meetings do not: the listing of T09-SG15-C holds 2390 contributions, the eight meetings hold 2379 together. A meeting-by-meeting sync alone loses the eleven documents that were posted between the meetings | Uncommitted |
 | 2026-11-27 | A collective letter needs a TIES session, although its metadata is public | The DMS marks a collective letter public, but the download goes through the access policy and needs a session. `DocVisibility.PUBLIC` describes the access level of the metadata, not a credential-free download, and the docstring says so | Uncommitted |
 | 2026-11-27 | The modules of the package are split by responsibility | The size rule of `.agents/POLICIES.md` is a rule: the API, the catalogue, the configuration, the command line, the storage, the parsers and the model were split until every module of `src/itu_t_documents/` is below 200 lines. The public names stay importable from where they were imported before, so a caller does not notice the split | Uncommitted |
+| 2026-11-27 | pyreorder must not delete the `if TYPE_CHECKING:` guards | The mixins of the API and of the catalogue refer to the class they are mixed into, so their imports are circular on purpose. The transform that hoists the imports out of the guard made the package unimportable. The guard stays, the transform is off | Uncommitted |
 
 ## Guidance
 

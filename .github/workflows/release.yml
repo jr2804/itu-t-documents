@@ -106,9 +106,35 @@ jobs:
           fi
           echo "The tag resolves to the version $resolved."
 
+  quality:
+    name: Lint, type check and spell check
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.13"
+
+      # The release runs in parallel with the continuous integration, so it
+      # checks the quality of the tree itself: a release never ships what the
+      # continuous integration would refuse.
+      - name: Ruff
+        run: |
+          uvx ruff check src tests
+          uvx ruff format --check src tests
+
+      - name: Type check
+        run: uvx ty check src tests
+
+      - name: Spell check
+        run: uvx codespell --check-filenames src/ tests/ docs/ .github/ skills/
+
   build:
     name: Build the sdist and the wheel
-    needs: version
+    needs: [version, quality]
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:

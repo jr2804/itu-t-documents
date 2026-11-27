@@ -10,8 +10,9 @@ from typing import Any, cast
 
 import pytest
 
-from itu_t_documents.api import ItuDocuments
+from itu_t_documents.api import ItuDocuments, SyncReport
 from itu_t_documents.catalogue import CatalogueEntry
+from itu_t_documents.errors import ItuError
 from itu_t_documents.mcp import mcp, support
 from itu_t_documents.mcp.payloads import document_payload, person_payload, source_payload
 from itu_t_documents.models.catalogue import StudyGroup, StudyGroupStructure
@@ -105,8 +106,6 @@ class FakeApi:
 
     def sync_study_group(self, study_group: int, study_period, doc_types=()) -> object:
         """Store the documents of a study group."""
-        from itu_t_documents.api import SyncReport
-
         self.calls.append(("sync_study_group", study_group, study_period.label))
         return SyncReport(meetings=(("270119", 1),), period_only=0)
 
@@ -260,7 +259,6 @@ def test_a_stored_meeting_is_answered_offline(fake_api: FakeApi) -> None:
 
 def test_a_failed_meeting_synchronisation_is_a_domain_error(fake_api: FakeApi, monkeypatch: pytest.MonkeyPatch) -> None:
     """A meeting that cannot be reached is reported as a failed synchronisation."""
-    from itu_t_documents.errors import ItuError
 
     def fail(*args, **kwargs):
         raise OSError("offline")
@@ -323,7 +321,6 @@ def test_the_payload_helpers_name_every_field() -> None:
 
 def test_a_failed_synchronisation_is_a_domain_error(fake_api: FakeApi, monkeypatch: pytest.MonkeyPatch) -> None:
     """An offline empty store is reported as a failed synchronisation."""
-    from itu_t_documents.errors import ItuError
 
     def fail(*args, **kwargs):
         raise OSError("offline")

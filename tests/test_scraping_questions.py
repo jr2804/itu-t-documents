@@ -48,10 +48,7 @@ def test_questions_refuse_an_unknown_role() -> None:
 
 def test_questions_refuse_a_person_without_a_name() -> None:
     """A named role without a name is reported."""
-    page = (
-        '<html><body><table><tr><td><span id="lblQWP1">Q1/12</span></td>'
-        '<td><span id="lblRole1">Rapporteur</span></td></tr></table></body></html>'
-    )
+    page = '<html><body><table><tr><td><span id="lblQWP1">Q1/12</span></td><td><span id="lblRole1">Rapporteur</span></td></tr></table></body></html>'
 
     with pytest.raises(ScrapingError, match="question person"):
         questions.parse_questions(page, 12)

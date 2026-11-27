@@ -16,6 +16,8 @@ from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.scraping import listing, questions
 from itu_t_documents.scraping.pages import parse_page
 
+PERIOD = StudyPeriod(start_year=2025, end_year=2028)
+
 
 def test_parse_contribution_listing(fixtures_dir: Path) -> None:
     """A contribution listing yields the documents with their metadata."""
@@ -109,10 +111,7 @@ def test_listing_without_a_document_table_is_refused() -> None:
 
 def test_listing_refuses_a_row_without_an_identifier() -> None:
     """A row the ITU-T cannot name is refused with its text."""
-    page = (
-        '<html><body><table><tr><td><input type="checkbox" name="chkFile"/></td>'
-        "<td>[ 1 ]</td><td>Title</td><td>Source</td></tr></table></body></html>"
-    )
+    page = '<html><body><table><tr><td><input type="checkbox" name="chkFile"/></td><td>[ 1 ]</td><td>Title</td><td>Source</td></tr></table></body></html>'
 
     with pytest.raises(ScrapingError, match="document listing row"):
         listing.parse_listing(page, PERIOD, 12, DocType.CONTRIBUTION)
@@ -171,9 +170,6 @@ def test_parse_other_meetings(fixtures_dir: Path) -> None:
 def _read(fixtures_dir: Path, name: str) -> str:
     """Return the content of a recorded fixture."""
     return (fixtures_dir / name).read_text(encoding="utf-8")
-
-
-PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
 
 def test_parse_total_items() -> None:

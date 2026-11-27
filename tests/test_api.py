@@ -26,6 +26,9 @@ from tests.fakes import DOCUMENT_BYTES, FakeClient
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
 
+PERIOD = StudyPeriod(start_year=2025, end_year=2028)
+
+
 def test_list_meetings(api: ItuDocuments) -> None:
     """The API lists the meetings of a study group."""
     found = api.list_meetings(12, StudyPeriod(start_year=2025, end_year=2028))
@@ -370,17 +373,6 @@ def test_close_releases_the_store_the_api_owns(tmp_path: Path, fake_client: Fake
     injected.close()
 
 
-@pytest.fixture
-def api(tmp_path: Path, fake_client: FakeClient) -> Iterator[ItuDocuments]:
-    """Return an API backed by the recorded fixtures."""
-    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
-    yield api
-    api.close()
-
-
-PERIOD = StudyPeriod(start_year=2025, end_year=2028)
-
-
 def test_find_documents_filters_by_every_criterion(tmp_path: Path, fake_client: FakeClient) -> None:
     """Every filter of the document search can be combined."""
     api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
@@ -531,6 +523,14 @@ def test_download_of_an_unavailable_rendition(tmp_path: Path, fake_client: FakeC
 
     with pytest.raises(FileNotFoundError):
         api.download(ref, DocFormat.PDF, DocLanguage.ENGLISH)
+
+
+@pytest.fixture
+def api(tmp_path: Path, fake_client: FakeClient) -> Iterator[ItuDocuments]:
+    """Return an API backed by the recorded fixtures."""
+    api = ItuDocuments(Settings(cache_dir=tmp_path), client=fake_client)
+    yield api
+    api.close()
 
 
 def test_api_context_manager_closes_the_client(tmp_path: Path, fake_client: FakeClient) -> None:

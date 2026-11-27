@@ -19,19 +19,6 @@ DEFAULT_CACHE_DIR = Path("~/.cache/itu-t-documents")
 CONFIG_FILE_NAME = "config.toml"
 
 
-def resolve_config_dir(explicit: str | Path | None = None) -> Path:
-    """Resolve the directory holding the configuration file.
-
-    The directory is looked up in this order: the explicitly passed value and
-    the ``ITU_CONFIG_DIR`` environment variable. When neither is set the
-    package uses :data:`DEFAULT_CONFIG_DIR`.
-    """
-    for candidate in (explicit, os.environ.get("ITU_CONFIG_DIR")):
-        if candidate:
-            return Path(str(candidate)).expanduser()
-    return DEFAULT_CONFIG_DIR.expanduser()
-
-
 def default_config_file() -> Path:
     """Return the path of the configuration file in the user's config directory."""
     return default_config_dir() / CONFIG_FILE_NAME
@@ -45,3 +32,16 @@ def default_config_dir() -> Path:
     the settings themselves are resolved.
     """
     return resolve_config_dir()
+
+
+def resolve_config_dir(explicit: str | Path | None = None) -> Path:
+    """Resolve the directory holding the configuration file.
+
+    The directory is looked up in this order: the explicitly passed value and
+    the ``ITU_CONFIG_DIR`` environment variable. When neither is set the
+    package uses :data:`DEFAULT_CONFIG_DIR`.
+    """
+    for candidate in (explicit, os.environ.get("ITU_CONFIG_DIR")):
+        if candidate:
+            return Path(str(candidate)).expanduser()
+    return DEFAULT_CONFIG_DIR.expanduser()

@@ -12,11 +12,6 @@ from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
 APP_NAME_UPPERCASE = "ITU_T_DOCUMENTS"
 
 
-def _enum_value(enum_type: type[DocFormat] | type[DocLanguage] | type[DocType], tokens: Sequence[Any]) -> Any:
-    """Convert the value cyclopts parsed into the enumeration member."""
-    return enum_type(str(tokens[0].value).upper())
-
-
 StudyGroup = Annotated[
     int,
     Parameter(
@@ -56,6 +51,12 @@ Meeting = Annotated[
         env_var=f"{APP_NAME_UPPERCASE}_MEETING",
     ),
 ]
+
+
+def _enum_value(enum_type: type[DocFormat] | type[DocLanguage] | type[DocType], tokens: Sequence[Any]) -> Any:
+    """Convert the value cyclopts parsed into the enumeration member."""
+    return enum_type(str(tokens[0].value).upper())
+
 
 DocTypeOption = Annotated[
     DocType | None,

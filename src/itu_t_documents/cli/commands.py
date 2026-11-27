@@ -16,16 +16,6 @@ from itu_t_documents.urls import DEFAULT_STUDY_GROUP, period_index
 __all__ = ["auth", "default", "mcp"]
 
 
-def meetings(
-    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
-    study_period: args.StudyPeriod = None,
-) -> None:
-    """List the meetings of a study group."""
-    with ItuDocuments() as api:
-        for meeting in api.list_meetings(study_group, _period(study_period)):
-            print(f"{meeting.code}  {meeting.label}")
-
-
 def sync(
     study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
     study_period: args.StudyPeriod = None,
@@ -48,6 +38,16 @@ def sync(
                 print(f"the period listing: {report.period_only} documents")
             total = report.total
         print(f"{total} documents stored in {api.store.database_path}")
+
+
+def meetings(
+    study_group: args.StudyGroup = DEFAULT_STUDY_GROUP,
+    study_period: args.StudyPeriod = None,
+) -> None:
+    """List the meetings of a study group."""
+    with ItuDocuments() as api:
+        for meeting in api.list_meetings(study_group, _period(study_period)):
+            print(f"{meeting.code}  {meeting.label}")
 
 
 def documents(

@@ -14,6 +14,8 @@ from itu_t_documents.models.questions import Person, Question, WorkingGroup
 from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.urls import detail_url_for
 
+PERIOD = StudyPeriod(start_year=2025, end_year=2028)
+
 
 def test_study_period_from_label() -> None:
     """A study period is parsed from its label."""
@@ -304,9 +306,6 @@ def test_unknown_format_and_language_codes() -> None:
     assert DocFormat.parse("XYZ") is None
     assert DocLanguage.parse("Q") is None
     assert DocFormat.parse("msw") is DocFormat.WORD
-
-
-PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
 
 def test_meeting_id_rejects_an_invalid_code() -> None:
