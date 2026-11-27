@@ -47,6 +47,13 @@ def test_listing_url_without_a_meeting() -> None:
     assert url == "https://www.itu.int/md/meetingdoc.asp?lang=en&parent=T25-SG12-COL"
 
 
+def test_listing_url_of_a_subtype() -> None:
+    """The listing of a sub-type carries the sub-type."""
+    url = listing_url(PERIOD, 12, DocType.TEMPORARY_DOCUMENT, MEETING, "GEN")
+
+    assert url == "https://www.itu.int/md/meetingdoc.asp?lang=en&parent=T25-SG12-261015-TD-GEN"
+
+
 def test_listing_url_of_a_single_digit_study_group() -> None:
     """A single digit study group is zero padded in the identifier."""
     url = listing_url(PERIOD, 5, DocType.CONTRIBUTION, MeetingId.from_code("260609"))

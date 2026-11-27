@@ -67,6 +67,42 @@ def test_parse_detail_page_title(fixtures_dir: Path) -> None:
     assert detail.parse_title(page) == "Draft agenda for WP1/12: Terminals and multimedia subjective assessment"
 
 
+def test_parse_detail_page_of_a_revised_document(fixtures_dir: Path) -> None:
+    """A revised document yields its original and its revisions."""
+    page = _read(fixtures_dir, "detail_revised_contribution.html")
+
+    files = detail.parse_files(page)
+
+    assert len(files) == 7
+    revisions = [file for file in files if file.revision == 1]
+    assert {file.language_code for file in revisions} == {"A", "C", "E", "F", "R", "S"}
+    originals = [file for file in files if file.revision is None]
+    assert len(originals) == 1
+    assert originals[0].language_code == "E"
+    assert originals[0].url == "https://www.itu.int/dms_ties/itu-t/md/25/sg02/c/T25-SG02-C-0001!!MSW-E.docx"
+
+
+def test_parse_subtypes_of_a_temporary_document_listing(fixtures_dir: Path) -> None:
+    """A listing offers the listing of every sub-type of the meeting."""
+    page = _read(fixtures_dir, "listing_temporary_documents.html")
+
+    subtypes = listing.parse_subtypes(page, MeetingId.from_code("261015"))
+
+    assert subtypes == ["GEN"]
+
+
+def test_parse_subtypes_of_another_meeting(fixtures_dir: Path) -> None:
+    """The sub-types of the other meetings are not offered."""
+    page = _read(fixtures_dir, "listing_temporary_documents.html")
+
+    assert listing.parse_subtypes(page, MeetingId.from_code("260609")) == []
+
+
+def test_parse_subtypes_of_an_empty_page() -> None:
+    """An empty page offers no sub-types."""
+    assert listing.parse_subtypes("", MeetingId.from_code("261015")) == []
+
+
 def test_parse_page_of_broken_markup() -> None:
     """A page that holds no markup at all is reported as such."""
     from itu_doc_downloader.scraping.pages import parse_page

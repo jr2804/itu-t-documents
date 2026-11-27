@@ -41,6 +41,16 @@ from itu_doc_downloader.urls import detail_url, listing_url, period_index, quest
 MEETING_INDEX_PATH = "/md/{prefix}-{group}/en"
 
 
+class IncompleteListingError(RuntimeError):
+    """Raised when a document listing holds fewer documents than it reports.
+
+    The ITU-T truncates a listing that is longer than the page size the web
+    interface accepts. The package sets that page size, so a truncated
+    listing means that the site changed and the documents of the listing
+    would be lost silently.
+    """
+
+
 @dataclass(frozen=True)
 class DocumentRecord:
     """A document as stored in the metadata database."""
@@ -69,6 +79,22 @@ class SourceCount:
     contributions: int = 0
     temporary_documents: int = 0
     meetings: tuple[str, ...] = ()
+
+
+def _check_complete(page: str, documents: list[DocumentMetadata]) -> None:
+    """Raise when a listing holds fewer documents than it reports.
+
+    Args:
+        page: The HTML of the listing page.
+        documents: The documents that were parsed from the page.
+
+    Raises:
+        IncompleteListingError: When the page reports more documents than it
+            holds.
+    """
+    reported = listing_scraper.parse_total_items(page)
+    if reported is not None and reported > len(documents):
+        raise IncompleteListingError(f"the listing holds {len(documents)} of {reported} documents; the ITU-T page size is not set correctly")
 
 
 class ItuDocuments:
@@ -149,6 +175,10 @@ class ItuDocuments:
     ) -> list[DocumentMetadata]:
         """Fetch a document listing from the ITU-T web site.
 
+        The aggregate listing of the temporary documents of a meeting only
+        shows a preview of five documents per sub-type, so the listing of
+        every sub-type is fetched as well.
+
         Args:
             study_group: The study group number.
             doc_type: The document type to list.
@@ -159,7 +189,27 @@ class ItuDocuments:
             The metadata of the listed documents.
         """
         page = self.client.get_text(listing_url(study_period, study_group, doc_type, meeting))
-        return listing_scraper.parse_listing(page, study_period, study_group, doc_type, meeting)
+        documents = listing_scraper.parse_listing(page, study_period, study_group, doc_type, meeting)
+        if doc_type is not DocType.TEMPORARY_DOCUMENT or meeting is None:
+            _check_complete(page, documents)
+            return documents
+
+        subtypes = listing_scraper.parse_subtypes(page, meeting)
+        if not subtypes:
+            _check_complete(page, documents)
+            return documents
+
+        seen = {document.ref.document_id for document in documents}
+        for subtype in subtypes:
+            subtype_page = self.client.get_text(listing_url(study_period, study_group, doc_type, meeting, subtype))
+            subtype_documents = listing_scraper.parse_listing(subtype_page, study_period, study_group, doc_type, meeting)
+            _check_complete(subtype_page, subtype_documents)
+            for document in subtype_documents:
+                if document.ref.document_id in seen:
+                    continue
+                seen.add(document.ref.document_id)
+                documents.append(document)
+        return documents
 
     def fetch_document_detail(self, ref: DocumentRef) -> DocumentMetadata:
         """Fetch the detail page of a document.
@@ -411,8 +461,8 @@ class ItuDocuments:
             FileNotFoundError: When the document is not available in the
                 requested format and language.
         """
-        cached = self.cache.path_for(ref, file_format, language)
-        if self.cache.has(ref, file_format, language):
+        cached = self.cache.find(ref, file_format, language)
+        if cached is not None:
             if output is None:
                 return cached
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -420,10 +470,10 @@ class ItuDocuments:
             return output
 
         metadata = self.fetch_document_detail(ref)
-        target = next(
-            (file for file in metadata.files if file.file_format is file_format and file.language is language),
-            None,
-        )
+        candidates = [file for file in metadata.files if file.file_format is file_format and file.language is language]
+        target = next((file for file in candidates if file.revision is None), None)
+        if target is None and candidates:
+            target = min(candidates, key=lambda file: file.revision or 0)
         if target is None:
             raise FileNotFoundError(f"{ref.document_id} is not available as {file_format.value}-{language.value}")
 
@@ -432,7 +482,14 @@ class ItuDocuments:
         response.raise_for_status()
         content = response.content
 
-        stored = self.cache.store(ref, file_format, language, content)
+        stored = self.cache.store(
+            ref,
+            file_format,
+            language,
+            content,
+            revision=target.revision,
+            extension=target.extension,
+        )
         self.store.store_document(metadata)
         if output is not None:
             output.parent.mkdir(parents=True, exist_ok=True)

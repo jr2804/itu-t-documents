@@ -103,17 +103,21 @@ def listing_url(
     study_group: int,
     doc_type: DocType,
     meeting: MeetingId | None = None,
+    subtype: str | None = None,
 ) -> str:
     """Return the URL of a document listing.
 
     Contributions and temporary documents are listed per meeting, collective
-    letters and reports are listed per study period.
+    letters and reports are listed per study period. The aggregate listing of
+    the temporary documents of a meeting only shows a preview of five
+    documents per sub-type, so the full listing is addressed by the sub-type.
 
     Args:
         period: The study period.
         study_group: The study group number.
         doc_type: The document type to list.
         meeting: The meeting to list documents for.
+        subtype: The sub-type of the temporary documents to list, e.g. ``GEN``.
 
     Returns:
         The absolute URL of the listing page.
@@ -122,6 +126,8 @@ def listing_url(
     if meeting is not None:
         parts.append(meeting.code)
     parts.append(doc_type.value)
+    if subtype is not None:
+        parts.append(subtype)
     return f"{MEETING_DOC_URL}?lang={LANGUAGE}&parent={'-'.join(parts)}"
 
 

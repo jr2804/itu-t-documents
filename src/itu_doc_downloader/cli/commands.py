@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from itu_doc_downloader.api import DocumentRecord, ItuDocuments
+from itu_doc_downloader.api import DocumentRecord, IncompleteListingError, ItuDocuments
 from itu_doc_downloader.auth.ties import AuthenticationError
 from itu_doc_downloader.cli import args
 from itu_doc_downloader.config.settings import Settings
@@ -92,7 +92,11 @@ def sync(
         codes = [meeting] if meeting else [item.code for item in api.list_meetings(study_group, period)]
         total = 0
         for code in codes:
-            stored = api.sync_meeting(study_group, MeetingId.from_code(code), period, types)
+            try:
+                stored = api.sync_meeting(study_group, MeetingId.from_code(code), period, types)
+            except IncompleteListingError as error:
+                print(f"{code}: the listing is incomplete — {error}")
+                return
             total += stored
             print(f"{code}: {stored} documents")
         print(f"{total} documents stored in {api.store.database_path}")

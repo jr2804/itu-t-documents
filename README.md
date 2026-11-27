@@ -30,6 +30,9 @@ database and downloads the documents on demand.
 - **Local caches** — the raw HTTP responses are cached with
   [hishel](https://hishel.com/), the metadata in a SQLite database and the
   downloaded documents on disk. Cached data never needs authentication again.
+- **Complete listings** — a listing is read per sub-type and compared with the
+  number of documents the ITU-T reports, so a truncated listing is never
+  stored as if it were complete.
 - **Three interfaces** — a Python API, a command line interface and an MCP
   server for AI agents.
 
@@ -134,7 +137,9 @@ increasing number. Temporary documents carry the meeting and a sub-type:
 `T25` is the study period `2025-2028`, `SG12` the study group, `261015` the
 meeting (15 October 2026) and `0520` the number of the document. Contributions,
 collective letters and reports are numbered across the whole study period, so
-their identifier carries no meeting.
+their identifier carries no meeting. The numbers are not consecutive — a
+withdrawn document leaves a hole — and the number of a temporary document runs
+per sub-type over the whole study period.
 
 ## Python API
 

@@ -15,16 +15,18 @@ Collective letter (``COL``)   ``T25-SG12-COL-0001``        ``/dms_pub/…/sg12/c
 Report (``R``)                ``T25-SG12-R-0001``          ``/dms_ties/…/sg12/r/…``
 ============================  ==========================  ==============================
 
-Contributions, collective letters and reports are numbered consecutively
-across the whole study period, so their identifier carries no meeting date.
-Temporary documents are numbered per meeting and therefore embed the meeting
-date and a sub-type such as ``GEN``.
+Contributions, collective letters and reports are numbered across the whole
+study period, so their identifier carries no meeting date. The numbers are not
+consecutive: a number that was withdrawn leaves a hole.
+Temporary documents are numbered per sub-type across the study period, so
+their identifier embeds the meeting date and a sub-type such as ``GEN``.
 """
 
 from __future__ import annotations
 
 import re
 from datetime import date
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -39,13 +41,32 @@ _DOCUMENT_ID_RE = re.compile(
     r"-(?P<number>\d{4})$"
 )
 
-#: Extension used by the DMS for each download format.
+#: Extension the DMS uses for each download format by default. A document is
+#: published in the format it was submitted in, so a Word document may also be
+#: a ``.doc`` or a ``.msw`` file; the extension of the download URL is the
+#: authoritative one.
 _FORMAT_EXTENSIONS: dict[DocFormat, str] = {
     DocFormat.WORD: "docx",
     DocFormat.PDF: "pdf",
     DocFormat.ZIP: "zip",
     DocFormat.HTML: "htm",
 }
+
+#: Pattern of the file name extension at the end of a file name.
+_EXTENSION_RE = re.compile(r"\.(?P<extension>[a-z0-9]+)$", re.IGNORECASE)
+
+
+def default_extension(file_format: DocFormat) -> str:
+    """Return the file name extension the DMS uses for a format by default.
+
+    Args:
+        file_format: The download format.
+
+    Returns:
+        The extension, without a leading dot.
+    """
+    return _FORMAT_EXTENSIONS[file_format]
+
 
 #: DMS path segment and visibility for each document type.
 _TYPE_PATHS: dict[DocType, tuple[str, DocVisibility]] = {
@@ -189,24 +210,35 @@ class DocumentRef(BaseModel):
         """The access level of this document type in the DMS."""
         return _TYPE_PATHS[self.doc_type][1]
 
-    def download_url(self, file_format: DocFormat, language: DocLanguage) -> str:
+    def download_url(
+        self,
+        file_format: DocFormat,
+        language: DocLanguage,
+        revision: int | None = None,
+        extension: str | None = None,
+    ) -> str:
         """Build the DMS download URL for one rendition of this document.
 
         Args:
             file_format: The requested file format.
             language: The requested language.
+            revision: The revision of the document. The DMS marks a revision
+                with ``!R1!`` instead of the plain ``!!`` separator.
+            extension: The file name extension. Defaults to the extension the
+                DMS uses for the format.
 
         Returns:
             An absolute URL on ``www.itu.int``.
         """
         segment, visibility = _TYPE_PATHS[self.doc_type]
-        extension = _FORMAT_EXTENSIONS[file_format]
+        suffix = extension or default_extension(file_format)
         path = f"/dms_{visibility.value}/itu-t/md/{self.study_period.short_code}/sg{self.study_group:02d}/{segment}"
         if self.doc_type is DocType.TEMPORARY_DOCUMENT:
             if self.meeting is None:
                 raise ValueError("temporary documents require a meeting")
             path = f"{path}/{self.meeting.code}/{self.subtype or 'GEN'}"
-        return f"https://www.itu.int{path}/{self.document_id}!!{file_format.value}-{language.value}.{extension}"
+        marker = "!!" if revision is None else f"!R{revision}!"
+        return f"https://www.itu.int{path}/{self.document_id}{marker}{file_format.value}-{language.value}.{suffix}"
 
     def detail_url(self) -> str:
         """Build the URL of the DMS detail page for this document."""
@@ -223,6 +255,7 @@ class DocumentFile(BaseModel):
     size_bytes: int | None = None
     posted: date | None = None
     url: str
+    revision: int | None = None
 
     @property
     def file_format(self) -> DocFormat | None:
@@ -236,11 +269,19 @@ class DocumentFile(BaseModel):
 
     @property
     def extension(self) -> str:
-        """The file name extension implied by the format code."""
+        """The file name extension of the rendition.
+
+        The DMS publishes a document in the format it was submitted in, so the
+        extension of the download URL is the authoritative one and the default
+        of the format is only used as a fallback.
+        """
+        match = _EXTENSION_RE.search(urlsplit(self.url).path.rsplit("/", maxsplit=1)[-1])
+        if match is not None:
+            return match.group("extension").lower()
         file_format = self.file_format
         if file_format is None:
             return ""
-        return _FORMAT_EXTENSIONS[file_format]
+        return default_extension(file_format)
 
 
 class DocumentMetadata(BaseModel):

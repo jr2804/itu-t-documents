@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from itu_doc_downloader.models.documents import DocumentRef, MeetingId, StudyPeriod
+from itu_doc_downloader.models.documents import DocumentFile, DocumentRef, MeetingId, StudyPeriod
 from itu_doc_downloader.models.enums import DocFormat, DocLanguage, DocType, Role
 from itu_doc_downloader.models.questions import Person, Question, WorkingGroup
 
@@ -148,6 +148,35 @@ def test_download_url(document_id: str, expected: str) -> None:
     url = ref.download_url(DocFormat.WORD if "MSW" in expected else DocFormat.PDF, DocLanguage.ENGLISH)
 
     assert url == expected
+
+
+def test_download_url_of_a_revision() -> None:
+    """A revision is marked in the download URL."""
+    ref = DocumentRef.parse("T25-SG02-C-0001")
+
+    url = ref.download_url(DocFormat.WORD, DocLanguage.ENGLISH, revision=1)
+
+    assert url == "https://www.itu.int/dms_ties/itu-t/md/25/sg02/c/T25-SG02-C-0001!R1!MSW-E.docx"
+
+
+def test_download_url_with_an_explicit_extension() -> None:
+    """The extension of a document may differ from the default of its format."""
+    ref = DocumentRef.parse("T25-SG13-R-0001")
+
+    url = ref.download_url(DocFormat.WORD, DocLanguage.ENGLISH, extension="doc")
+
+    assert url == "https://www.itu.int/dms_ties/itu-t/md/25/sg13/r/T25-SG13-R-0001!!MSW-E.doc"
+
+
+def test_document_file_uses_the_extension_of_its_url() -> None:
+    """The extension of a rendition follows its download URL."""
+    rendition = DocumentFile(
+        format_code="MSW",
+        language_code="E",
+        url="https://www.itu.int/dms_ties/itu-t/md/25/sg13/r/T25-SG13-R-0001!!MSW-E.doc",
+    )
+
+    assert rendition.extension == "doc"
 
 
 def test_temporary_document_requires_a_meeting() -> None:

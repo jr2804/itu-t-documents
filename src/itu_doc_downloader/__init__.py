@@ -8,7 +8,7 @@ metadata store and document cache.
 from __future__ import annotations
 
 from itu_doc_downloader.__about__ import __version__
-from itu_doc_downloader.api import DocumentRecord, ItuDocuments, SourceCount
+from itu_doc_downloader.api import DocumentRecord, IncompleteListingError, ItuDocuments, SourceCount
 from itu_doc_downloader.config.settings import Settings
 from itu_doc_downloader.models.documents import (
     DocumentFile,
@@ -32,6 +32,7 @@ __all__ = [
     "DocumentRecord",
     "DocumentRef",
     "FileCache",
+    "IncompleteListingError",
     "ItuDocuments",
     "MeetingId",
     "MetadataStore",

@@ -95,9 +95,15 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
 - The ITU-T meeting document pages are ISO-8859-1 and declare no charset — decode
   them as such. The `net4` pages are UTF-8. See `http/client.py:decode`.
 - The document listings are paginated. Set the `ITUDMS_PageSize` cookie to 900 or
-  a listing is silently truncated.
+  a listing is silently truncated. The listings report their size — refuse a
+  listing that holds fewer documents than it reports.
+- The aggregate listing of the temporary documents of a meeting previews five
+  documents per sub-type. Read the listing of every sub-type, never the
+  aggregate one alone.
 - The document identifiers mirror the ITU-T DMS. Never reformat them; change
   `models/documents.py` and its tests together.
+- The numbers of the documents are not consecutive and a revision is marked
+  `!R1!`. Neither a number nor a status code proves that a document exists.
 - The TIES login is a four step SAML handshake. Do not shortcut it — the session
   cookie lives in the HTTP client and one login serves every later request.
 - Scraped text is untrusted input: it reaches the domain model through the

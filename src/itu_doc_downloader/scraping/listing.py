@@ -24,6 +24,10 @@ _REVISION_RE = re.compile(r"Rev\.?\s*(?P<revision>\d+)", re.IGNORECASE)
 #: Pattern of the number cell, e.g. ``[ 520-GEN ]``.
 _NUMBER_RE = re.compile(r"\[(?P<number>[^\]]+)\]")
 
+#: Pattern of the ``parent`` parameter of the link to the listing of a
+#: temporary document sub-type.
+_SUBTYPE_RE = re.compile(r"T\d{2}-SG\d{1,3}-(?P<meeting>\d{6})-TD-(?P<subtype>[A-Z0-9]+)")
+
 
 def _clean(text: str) -> str:
     """Normalise whitespace of a scraped text fragment."""
@@ -125,6 +129,37 @@ def _parse_questions(cell: HtmlElement) -> list[int]:
         if number not in numbers:
             numbers.append(number)
     return numbers
+
+
+def parse_subtypes(page_html: str, meeting: MeetingId) -> list[str]:
+    """Return the temporary document sub-types a listing page offers.
+
+    The aggregate listing of the temporary documents of a meeting only shows
+    a preview of five documents per sub-type, so the full listing has to be
+    fetched per sub-type.
+
+    Args:
+        page_html: The HTML of the listing page.
+        meeting: The meeting whose sub-types are looked for. The pages link
+            to the sub-types of the other meetings as well.
+
+    Returns:
+        The sub-type names, in the order of the page.
+    """
+    tree = parse_page(page_html)
+    if tree is None:
+        return []
+    subtypes: list[str] = []
+    for link in tree.xpath("//a[contains(@href, 'parent=')]"):
+        href = link.get("href") or ""
+        parent = href.split("parent=", maxsplit=1)[-1].split("&", maxsplit=1)[0]
+        match = _SUBTYPE_RE.fullmatch(parent)
+        if match is None or match["meeting"] != meeting.code:
+            continue
+        subtype = match["subtype"]
+        if subtype not in subtypes:
+            subtypes.append(subtype)
+    return subtypes
 
 
 def parse_total_items(page_html: str) -> int | None:

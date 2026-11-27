@@ -52,12 +52,22 @@ class FakeClient(ItuClient):
         if url.endswith("/md/T25-SG12/en"):
             return self._read("meeting_index.html")
         parent = url.rsplit("parent=", maxsplit=1)[-1]
+        if parent == "T25-SG02-C-0001":
+            return self._read("detail_revised_contribution.html")
+        if parent == "T25-SG02-C-0002":
+            return self._read("detail_revision_only.html")
+        if parent == "T25-SG12-250114-TD":
+            return self._listing("listing_contributions.html")
+        if parent == "T25-SG12-270119-C":
+            return self._read("listing_contributions.html")
         if _DOCUMENT_ID_RE.fullmatch(parent):
             return self._read("detail_temporary_document.html")
         if parent.endswith("-C"):
-            return self._read("listing_contributions.html")
-        if parent.endswith("-TD"):
-            return self._read("listing_temporary_documents.html")
+            return self._listing("listing_contributions.html")
+        if parent == "T25-SG12-261015-TD-GEN":
+            return self._listing("listing_temporary_documents_subtype.html")
+        if parent.endswith("-TD") or "-TD-" in parent:
+            return self._listing("listing_temporary_documents.html")
         return self._read("detail_temporary_document.html")
 
     def authenticate(self, target: str | None = None) -> httpx.Client:
@@ -80,3 +90,14 @@ class FakeClient(ItuClient):
     def _read(self, name: str) -> str:
         """Return the content of a fixture."""
         return (self.fixtures_dir / name).read_text(encoding="utf-8")
+
+    def _listing(self, name: str) -> str:
+        """Return a listing whose reported item count matches its rows.
+
+        The recorded fixtures hold an excerpt of the listings of the ITU-T
+        web site, so the number of items they report is the number of the
+        whole listing.
+        """
+        page = self._read(name)
+        rows = page.count('name="chkFile"')
+        return re.sub(r"(Results:<strong>)\d+(</strong>)", rf"\g<1>{rows}\g<2>", page)

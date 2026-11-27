@@ -3,7 +3,8 @@
 The detail page of a document lists every available rendition in a table with
 the columns *language*, *format*, *size*, *posted* and *number*. The download
 URL of a rendition carries the format and the language code, e.g.
-``…/T25-SG12-261015-TD-GEN-0520!!MSW-E.docx``.
+``…/T25-SG12-261015-TD-GEN-0520!!MSW-E.docx``. A revised document replaces
+the separator by ``!R1!``, e.g. ``…/T25-SG02-C-0001!R1!MSW-E.docx``.
 """
 
 from __future__ import annotations
@@ -14,8 +15,10 @@ from datetime import date
 from itu_doc_downloader.models.documents import DocumentFile
 from itu_doc_downloader.scraping.pages import parse_page
 
-#: Pattern of the format and language suffix of a download URL.
-_SUFFIX_RE = re.compile(r"!!(?P<format>[A-Z0-9]+)-(?P<language>[A-Z])\.(?P<extension>[a-z0-9]+)$")
+#: Pattern of the format and language suffix of a download URL. The DMS
+#: separates the identifier from the suffix with ``!!`` and replaces the
+#: separator by ``!R1!`` when it publishes a revision.
+_SUFFIX_RE = re.compile(r"!(?:R(?P<revision>\d+))?!(?P<format>[A-Z0-9]+)-(?P<language>[A-Z])\.(?P<extension>[a-z0-9]+)$")
 
 #: Pattern of the size column, e.g. ``46104 bytes``.
 _SIZE_RE = re.compile(r"(?P<size>\d[\d\s.,]*)\s*bytes", re.IGNORECASE)
@@ -39,9 +42,9 @@ def parse_files(page_html: str, base_url: str = "https://www.itu.int") -> list[D
         return []
     files: list[DocumentFile] = []
     seen: set[str] = set()
-    for row in tree.xpath("//tr[count(td) > 1][.//a[contains(@href, '!!')]]"):
+    for row in tree.xpath("//tr[count(td) > 1][.//a[contains(@href, '/dms_')]]"):
         cells = row.xpath("./td")
-        for link in row.xpath(".//a[contains(@href, '!!')]"):
+        for link in row.xpath(".//a[contains(@href, '/dms_')]"):
             href = link.get("href") or ""
             match = _SUFFIX_RE.search(href)
             if match is None:
@@ -57,6 +60,7 @@ def parse_files(page_html: str, base_url: str = "https://www.itu.int") -> list[D
                     size_bytes=_parse_size(cells[2].text_content()) if len(cells) > 2 else None,
                     posted=_parse_date(cells[3].text_content()) if len(cells) > 3 else None,
                     url=url,
+                    revision=int(match["revision"]) if match["revision"] else None,
                 )
             )
     return files

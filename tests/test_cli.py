@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from itu_doc_downloader.api import IncompleteListingError
 from itu_doc_downloader.cli import commands
 from itu_doc_downloader.models.documents import MeetingId, StudyPeriod
 from itu_doc_downloader.models.enums import DocType
@@ -36,6 +37,7 @@ class FakeApi:
         """Create the fake API."""
         self.store = FakeStore()
         self.calls: list[tuple] = []
+        self.truncated = False
 
     def __enter__(self) -> FakeApi:
         return self
@@ -59,6 +61,8 @@ class FakeApi:
     def sync_meeting(self, study_group: int, meeting: MeetingId, study_period: StudyPeriod, doc_types=()) -> int:
         """Store the documents of a meeting."""
         self.calls.append(("sync_meeting", study_group, meeting.code))
+        if self.truncated:
+            raise IncompleteListingError("the listing holds 3 of 85 documents")
         return 7
 
     def find_documents(self, **kwargs) -> list:
@@ -108,6 +112,17 @@ def test_sync_command_without_a_meeting(fake_api: FakeApi, capsys: pytest.Captur
     out = capsys.readouterr().out
     assert "270119: 7 documents" in out
     assert "261015: 7 documents" in out
+
+
+def test_sync_command_with_an_incomplete_listing(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
+    """A truncated listing is reported instead of storing incomplete data."""
+    fake_api.truncated = True
+
+    commands.sync(study_group=12, study_period="2025-2028", meeting="260609")
+
+    out = capsys.readouterr().out
+    assert "the listing is incomplete" in out
+    assert "3 of 85" in out
 
 
 def test_documents_command_without_results(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
