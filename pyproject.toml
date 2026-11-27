@@ -11,6 +11,8 @@ authors = [
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Free Threading :: 3 - Stable",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
@@ -45,14 +47,33 @@ secretspec = ["secretspec>=0.21.1"]
 packages = ["src/itu_doc_downloader"]
 
 [build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
+# 0.8 is the first release that knows the "format-jinja" option, an older
+# plugin would silently ignore it.
+requires = ["hatchling", "uv-dynamic-versioning>=0.8"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
 [tool.uv-dynamic-versioning]
-fallback-version = "0.0.0"
+# CalVer: YYYY.MINOR.PATCH. The tag carries an optional "v" prefix, the
+# published version never does. See docs/release.md.
+pattern = '^v?(?P<base>\d{4}\.\d+\.\d+)$'
+# A source tree without a usable VCS (an exported tarball, a vendored copy).
+fallback-version = "0.0.0.dev0"
+# An exact tag yields the bare version. Everything else yields a PEP 440
+# development version: "<base>.dev<distance>+<commit>" for a commit that
+# follows a tag, "<year>.0.0.dev<distance>+<commit>" for a tree without any
+# CalVer tag, and a ".dirty" local segment for an unclean working tree.
+format-jinja = '''
+{%- if base == "0.0.0" -%}
+{{ (timestamp or "0")[:4] }}.0.0.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
+{%- elif distance == 0 and not dirty -%}
+{{ base }}
+{%- else -%}
+{{ base }}.dev{{ distance }}{{ ("+" ~ commit) if commit else "" }}{{ ".dirty" if dirty else "" }}
+{%- endif -%}
+'''
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

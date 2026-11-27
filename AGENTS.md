@@ -123,6 +123,9 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   of the secretspec provider is resolved from `ITU_SECRETSPEC_MANIFEST`, the
   configuration file, the `secretspec.toml` of the configuration directory and
   the discovery of secretspec — in that order.
+- The version of the package comes from the git tag and is never written into
+  `pyproject.toml`. The tag is a CalVer tag, `YYYY.MINOR.PATCH`. See
+  `docs/release.md`.
 
 ## Child DOX Index
 
@@ -138,6 +141,7 @@ Top-level boundaries in this project:
 - `tests/` (test suite)
 - `tests/fixtures/` (recorded ITU-T pages used by the parser tests)
 - `docs/` (documentation)
+- `.github/` (the CI and the release workflow)
 - `.config/mise/` (task/tooling configuration)
 - `.config/mise/conf.d/` (dev-feature MCP and skills task fragments)
 

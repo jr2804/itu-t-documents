@@ -1,0 +1,25 @@
+[tasks.version]
+description = "Print the version the build backend resolves"
+run = "uvx uv-dynamic-versioning"
+
+[tasks.build]
+description = "Build the sdist and the wheel into dist/"
+run = "uv build"
+
+[tasks.release]
+description = "Dry run of the release: check the latest tag and build the artifacts"
+run = """
+set -eu
+tag=$(git describe --tags --abbrev=0 2>/dev/null) || {
+  echo "The repository holds no tag yet, there is nothing to release." >&2
+  exit 1
+}
+version=$(printf '%s' "$tag" | sed 's/^v//')
+if ! printf '%s' "$version" | grep -Eq '^[0-9]{4}\\.[0-9]+\\.[0-9]+$'; then
+  echo "The tag '$tag' is not a CalVer tag (YYYY.MINOR.PATCH)." >&2
+  exit 1
+fi
+echo "The tag '$tag' must publish the version $version."
+uvx uv-dynamic-versioning
+uv build
+"""

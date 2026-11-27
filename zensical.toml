@@ -18,6 +18,7 @@ nav = [
   ] },
   { "Development" = [
     { "Contributing" = "contributing.md" },
+    { "Releasing" = "release.md" },
     { "Code of Conduct" = "code_of_conduct.md" },
   ] },
 ]

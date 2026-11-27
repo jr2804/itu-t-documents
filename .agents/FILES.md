@@ -26,6 +26,9 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Pre-commit config      | `.pre-commit-config.yaml`                                       | Hook list                                       |
 | MCP server config      | `.config/mise/conf.d/mcp.toml`                                  | `[tasks.add-mcp-servers]`, tool list            |
 | Skills install task    | `.config/mise/conf.d/skills.toml`                               | `[tasks.add-skills]`, skill list                |
+| Release tasks          | `.config/mise/conf.d/release.toml`                              | `[tasks.version]`, `[tasks.build]`, `[tasks.release]` |
+| CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
+| Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |
 | Domain model           | `src/itu_doc_downloader/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `enums.py` |
 | Page parsers           | `src/itu_doc_downloader/scraping/`                             | `listing.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py` |
 | The catalogue          | `src/itu_doc_downloader/catalogue.py`                          | `ItuCatalogue`, `CatalogueEntry`               |

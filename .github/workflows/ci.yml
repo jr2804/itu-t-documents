@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, type check and spell check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.13"
+
+      - name: Install the project
+        run: uv sync --all-extras --all-groups
+
+      - name: Ruff
+        run: |
+          uvx ruff check src tests
+          uvx ruff format --check src tests
+
+      - name: Type check
+        run: uvx ty check src tests
+
+      - name: Spell check
+        run: uvx codespell --check-filenames src/ tests/ docs/ .github/
+
+      - name: Markdown lint
+        run: uvx rumdl check --config .config/rumdl.toml .
+
+  test:
+    name: Test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # "3.14t" is the free-threaded build of CPython 3.14.
+        python-version: ["3.13", "3.14", "3.14t"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the project
+        if: matrix.python-version != '3.14t'
+        run: uv sync --all-extras --all-groups
+
+      # The free-threaded build uses the "abi3t" ABI, the classic "abi3"
+      # wheels are not compatible with it. The optional "secretspec" extra
+      # and zensical only ship "abi3" wheels, so the free-threaded job
+      # installs the runtime dependencies and the test tools alone.
+      - name: Install the project (free-threaded)
+        if: matrix.python-version == '3.14t'
+        run: |
+          uv sync --no-group dev
+          uv pip install pytest pytest-cov
+
+      - name: Test
+        env:
+          # The free-threaded build enables the GIL by default. "0" keeps it
+          # disabled, so the test suite really runs without the GIL.
+          PYTHON_GIL: ${{ matrix.python-version == '3.14t' && '0' || '1' }}
+        run: uv run --no-sync pytest --cov=itu_doc_downloader
+
+  build:
+    name: Build the sdist and the wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The version comes from the git tags, the whole history is needed.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.13"
+
+      - name: Build
+        run: uv build
+
+      - name: Check the artifacts
+        run: |
+          version="$(uvx uv-dynamic-versioning)"
+          echo "The build resolves the version $version."
+          ls -l dist
+          ls dist/*"$version"*.tar.gz dist/*"$version"*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

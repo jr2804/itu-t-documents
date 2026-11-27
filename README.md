@@ -281,6 +281,13 @@ mise format      # ruff format + isort
 mise all         # test + lint + format in one pass
 ```
 
+The version of the package is a CalVer version — `YYYY.MINOR.PATCH`, e.g.
+`2026.1.0` — and it is derived from the git tag, never written into
+`pyproject.toml`. Pushing a tag builds the artifacts, tests them on CPython
+3.13, 3.14 and the free-threaded 3.14t, publishes them to PyPI and creates the
+GitHub release. The procedure is documented in
+[docs/release.md](docs/release.md).
+
 The reverse engineered URL and numbering scheme is documented in
 [docs/reference/itu-dms.md](docs/reference/itu-dms.md).
 
