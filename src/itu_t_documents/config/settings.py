@@ -122,6 +122,13 @@ class Settings(BaseSettings):
             "which discovers it in the current directory and its parents."
         ),
     )
+    credentials_note: str = Field(
+        default="",
+        description=(
+            "A note about the credentials that were found, e.g. that the secretspec provider "
+            "resolved a declared secret as an empty value. It is empty when nothing is wrong."
+        ),
+    )
 
     @property
     def config_file(self) -> Path:
@@ -136,6 +143,18 @@ class Settings(BaseSettings):
     def has_credentials(self) -> bool:
         """Whether both a TIES user name and a password are available."""
         return bool(self.ties_username) and self.ties_password is not None
+
+    @property
+    def credentials_message(self) -> str:
+        """The message that tells why the credentials are missing.
+
+        A note of the credential source — a secretspec provider that resolved
+        a secret as an empty value, say — names the cause; without one the
+        message names the ways to configure the credentials.
+        """
+        if self.credentials_note:
+            return self.credentials_note
+        return f"no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD or store them in {self.config_file}"
 
     @classmethod
     def settings_customise_sources(

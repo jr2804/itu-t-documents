@@ -34,6 +34,7 @@ parents. A manifest elsewhere is addressed explicitly — see
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import Any, Final
@@ -56,6 +57,27 @@ _SECRETSPEC_KEYS: Final[dict[str, str]] = {
 
 #: Reason passed to secretspec so audit logs show why the secrets were read.
 _SECRETSPEC_REASON = "authenticate against the ITU-T document management system"
+
+
+@dataclass(frozen=True)
+class SecretspecCredentials:
+    """What a secretspec provider resolved.
+
+    A declared secret can be resolved as an empty value: a ``dotenv``
+    provider reads everything behind a leading ``#`` as a comment, so a
+    password that begins with one is empty unless it is quoted. The provider
+    does not fail — it hands out a value — so the package has to name the
+    secret that is empty instead of reporting that no credentials exist.
+    """
+
+    username: str
+    """The user name of the TIES account, empty when it was not resolved."""
+
+    password: SecretStr
+    """The password of the TIES account, empty when it was not resolved."""
+
+    empty_fields: tuple[str, ...] = ()
+    """The names of the declared secrets that were resolved as an empty value."""
 
 
 class SecretspecConfigSource(PydanticBaseSettingsSource):
@@ -81,8 +103,13 @@ class SecretspecConfigSource(PydanticBaseSettingsSource):
         credentials = secretspec_credentials(self._provider, self._manifest)
         if credentials is None:
             return {}
-        username, password = credentials
-        return {"ties_username": username, "ties_password": password}
+        values: dict[str, Any] = {}
+        if credentials.username and credentials.password.get_secret_value():
+            values["ties_username"] = credentials.username
+            values["ties_password"] = credentials.password
+        if credentials.empty_fields:
+            values["credentials_note"] = _credentials_note(self._provider, credentials.empty_fields)
+        return values
 
     @staticmethod
     def get_field_value(field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
@@ -93,7 +120,7 @@ class SecretspecConfigSource(PydanticBaseSettingsSource):
 def secretspec_credentials(
     provider: str = DEFAULT_SECRETSPEC_PROVIDER,
     manifest: Path | str | None = None,
-) -> tuple[str, SecretStr] | None:
+) -> SecretspecCredentials | None:
     """Read the TIES credentials from a secretspec provider.
 
     Args:
@@ -102,8 +129,10 @@ def secretspec_credentials(
             omitted, secretspec discovers the manifest itself.
 
     Returns:
-        The user name and the password, or ``None`` when secretspec is not
-        installed, the provider is not configured, or either value is missing.
+        What the provider resolved, or ``None`` when secretspec is not
+        installed, the provider is not configured, or it cannot be resolved.
+        A resolved value can be empty; the names of the empty ones are in
+        :attr:`SecretspecCredentials.empty_fields`.
     """
     module = _secretspec_module()
     if module is None:
@@ -118,9 +147,26 @@ def secretspec_credentials(
     values = resolved.fields()
     username = values.get(_SECRETSPEC_KEYS["username"])
     password = values.get(_SECRETSPEC_KEYS["password"])
-    if not username or not password:
+    if username is None or password is None:
+        # The provider did not resolve a declared secret at all; there is
+        # nothing to report but the missing credentials.
         return None
-    return username, SecretStr(password)
+    empty = tuple(name for name, value in ((_SECRETSPEC_KEYS["username"], username), (_SECRETSPEC_KEYS["password"], password)) if value == "")
+    return SecretspecCredentials(username=username, password=SecretStr(password), empty_fields=empty)
+
+
+def _credentials_note(provider: str, empty_fields: tuple[str, ...]) -> str:
+    """Return the note that names the secrets a provider resolved as empty.
+
+    Args:
+        provider: The name or URI of the provider.
+        empty_fields: The names of the declared secrets that were empty.
+
+    Returns:
+        The note.
+    """
+    names = ", ".join(empty_fields)
+    return f"the secretspec provider '{provider}' resolved {names} as an empty value; quote the value in the provider's .env file"
 
 
 def _secretspec_module() -> Any:

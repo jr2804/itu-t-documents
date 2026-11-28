@@ -96,10 +96,10 @@ def test_credentials_are_read_from_the_provider(monkeypatch: pytest.MonkeyPatch)
     credentials = secretspec_credentials()
 
     assert credentials is not None
-    username, password = credentials
-    assert username == "spec@example.org"
-    assert isinstance(password, SecretStr)
-    assert password.get_secret_value() == "spec-secret"
+    assert credentials.username == "spec@example.org"
+    assert isinstance(credentials.password, SecretStr)
+    assert credentials.password.get_secret_value() == "spec-secret"
+    assert credentials.empty_fields == ()
     assert calls["provider"] == DEFAULT_SECRETSPEC_PROVIDER
     assert calls["reason"]
 
@@ -171,11 +171,47 @@ def test_missing_password_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
     assert secretspec_credentials() is None
 
 
-def test_missing_username_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A declared but unset user name disables the source."""
+def test_an_empty_user_name_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A secret that the provider resolved as an empty value is named."""
     _install_fake_secretspec(monkeypatch, _FakeResolved({"ITU_TIES_USERNAME": "", "ITU_TIES_PASSWORD": "spec-secret"}), {})
 
-    assert secretspec_credentials() is None
+    credentials = secretspec_credentials()
+
+    assert credentials is not None
+    assert credentials.empty_fields == ("ITU_TIES_USERNAME",)
+
+
+def test_an_empty_password_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A password that the provider resolved as an empty value is named.
+
+    A dotenv provider reads everything behind a leading "#" as a comment, so
+    a password that begins with one is empty unless it is quoted.
+    """
+    _install_fake_secretspec(monkeypatch, _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": ""}), {})
+
+    credentials = secretspec_credentials()
+
+    assert credentials is not None
+    assert credentials.empty_fields == ("ITU_TIES_PASSWORD",)
+
+
+def test_an_empty_secret_is_noted_in_the_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The settings carry the note about the secret that is empty."""
+    _install_fake_secretspec(monkeypatch, _FakeResolved({"ITU_TIES_USERNAME": "spec@example.org", "ITU_TIES_PASSWORD": ""}), {})
+
+    settings = Settings()
+
+    assert "ITU_TIES_PASSWORD" in settings.credentials_note
+    assert "empty value" in settings.credentials_note
+    assert "empty value" in settings.credentials_message
+    assert not settings.has_credentials()
+
+
+def test_the_settings_name_the_way_to_configure_the_credentials() -> None:
+    """Without a note the message names the ways to configure the credentials."""
+    settings = Settings()
+
+    assert "no TIES credentials configured" in settings.credentials_message
 
 
 def test_source_returns_credentials(monkeypatch: pytest.MonkeyPatch) -> None:

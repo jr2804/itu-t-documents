@@ -160,6 +160,7 @@ class _SettingsWithoutCredentials:
     """Settings without any credentials."""
 
     config_file = Path("~/.config/itu-t-documents/config.toml")
+    credentials_message = "no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD"
 
     def has_credentials(self) -> bool:
         """Report that no credentials are available."""

@@ -98,6 +98,16 @@ username = "..."
 password = "..."
 ```
 
+A secretspec provider that resolves a secret as an *empty* value is reported
+by name:
+
+```text
+the secretspec provider 'itu-ties' resolved ITU_TIES_PASSWORD as an empty value; quote the value in the provider's .env file
+```
+
+A `dotenv` provider reads everything behind an unquoted `#` as a comment, so
+a password that begins with one has to be quoted: `ITU_TIES_PASSWORD="#abc"`.
+
 ## The command answers with nothing
 
 `documents` reads the **local database**. A meeting that was never synced is

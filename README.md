@@ -362,7 +362,10 @@ timeout = 30
 A third, lowest priority source is a
 [secretspec](https://github.com/cachix/secretspec) provider, which is installed
 with the optional extra `uv sync --extra secretspec`. Without the extra, or
-without a matching provider, it is ignored silently.
+without a matching provider, it is ignored silently. In the `.env` file of a
+`dotenv` provider, a value that starts with `#` or that holds spaces has to be
+quoted — otherwise the provider reads the rest of the line as a comment and
+hands out an empty value.
 
 Check that the account works with:
 

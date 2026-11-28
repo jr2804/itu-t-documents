@@ -142,6 +142,24 @@ The manifest is looked up in that order: `ITU_SECRETSPEC_MANIFEST`, the
 `secretspec.toml` of the configuration directory, and finally the discovery of
 secretspec itself.
 
+### Values of a dotenv provider
+
+A `dotenv` provider reads its values from a `.env` file. A value that begins
+with a `#` or that holds spaces has to be quoted there — everything behind an
+unquoted `#` is a comment, and the provider hands out an empty value:
+
+```dotenv
+ITU_TIES_USERNAME=reimes
+ITU_TIES_PASSWORD="#abc123"     # quoted: an unquoted "#" starts a comment
+```
+
+The package names the secret that was resolved as an empty value, so the
+message points at the quoting and not at the configuration:
+
+```text
+itu-t-documents: the secretspec provider 'itu-ties' resolved ITU_TIES_PASSWORD as an empty value; quote the value in the provider's .env file
+```
+
 ### The membership of the account
 
 A TIES account is valid for the whole ITU-T, but its membership covers only

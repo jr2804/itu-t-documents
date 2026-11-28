@@ -147,9 +147,7 @@ class ItuHttpClient:
                 identity provider rejects them.
         """
         if not self.settings.has_credentials():
-            raise AuthenticationError(
-                f"no TIES credentials configured; set ITU_TIES_USERNAME and ITU_TIES_PASSWORD or store them in {self.settings.config_file}"
-            )
+            raise AuthenticationError(self.settings.credentials_message)
         if self._authenticator is None:
             self._authenticator = TiesAuthenticator(
                 self._session_client,
