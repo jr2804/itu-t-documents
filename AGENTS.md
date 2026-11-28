@@ -125,6 +125,9 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   never with a guarded import — see `.agents/POLICIES.md`.
 - Anything already seen must be answerable without authentication: the metadata
   store and the file cache are the sources of truth for cached data.
+- The metadata store may have been written by an older release: every change of
+  the schema needs a migration in `storage/migrations.py`, because
+  `create_all` only creates the missing tables.
 - A listing and a detail page tell different things about a document. The store
   adds what each of them tells (`store_document`, `store_detail`); neither may
   erase what the other told.

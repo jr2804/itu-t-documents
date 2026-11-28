@@ -43,7 +43,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | HTTP access            | `src/itu_t_documents/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
 | Configuration           | `src/itu_t_documents/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |
 | secretspec credentials  | `src/itu_t_documents/config/secretspec_source.py`           | `secretspec_credentials`, `SecretspecConfigSource` |
-| Metadata store         | `src/itu_t_documents/storage/`                             | `database.py` (`MetadataStore`), `tables.py`, `queries.py`, `documents.py`, `questions.py`, `files.py` |
+| Metadata store         | `src/itu_t_documents/storage/`                             | `database.py` (`MetadataStore`), `tables.py`, `queries.py`, `documents.py`, `questions.py`, `files.py`, `migrations.py` |
 | Document file cache    | `src/itu_t_documents/storage/files.py`                      | `FileCache`                                    |
 | URL builders           | `src/itu_t_documents/urls.py`                               | `listing_url`, `detail_url`, `questions_url`    |
 | High level API         | `src/itu_t_documents/api.py`                                | `ItuDocuments`, `SyncReport`; `api_sync.py`, `api_queries.py` |

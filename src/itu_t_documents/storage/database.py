@@ -6,8 +6,10 @@ tool answers questions without contacting the ITU-T web site again.
 
 :class:`MetadataStore` opens the database and offers one method per write.
 The tables live in ``storage/tables.py``, the code that fills them in
-``storage/documents.py`` and ``storage/questions.py``, and what the store
-answers is asked in ``storage/queries.py``.
+``storage/documents.py`` and ``storage/questions.py``, what the store
+answers is asked in ``storage/queries.py``, and the migrations that bring a
+database of an older release up to the schema of the code live in
+``storage/migrations.py``.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from itu_t_documents.config.settings import Settings
 from itu_t_documents.models.metadata import DocumentMetadata
 from itu_t_documents.models.questions import Question
 from itu_t_documents.storage.documents import write_detail, write_document
+from itu_t_documents.storage.migrations import migrate
 from itu_t_documents.storage.questions import write_question
 from itu_t_documents.storage.tables import DocumentRow
 
@@ -42,6 +45,10 @@ class MetadataStore:
         self.database_path = self.cache_dir / DATABASE_FILE
         self.engine = create_engine(f"sqlite:///{self.database_path}")
         SQLModel.metadata.create_all(self.engine)
+        # A database of an older release has the tables but not every column:
+        # "create_all" only creates the missing tables. The migrations bring
+        # such a database up to the schema of the code.
+        migrate(self.engine)
 
     def session(self) -> Session:
         """Return a new database session."""
