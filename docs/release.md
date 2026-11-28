@@ -86,6 +86,19 @@ hand has its own release. To retry a release that failed, re-run the failed
 jobs of the run, not the whole run — the version of a whole run that is
 repeated is the next version, not the one that failed.
 
+A commit that asks for no release is skipped as well: the marker
+`[skip release]` in its message. The commit is not tagged and nothing is
+published, so a change that does not touch the package — a change of the
+documentation alone, say — does not consume a version:
+
+```bash
+git commit -m "docs(agents): the contracts of the round [skip release]"
+```
+
+The marker is read by the `version` job of the workflow, before it tags
+anything. The continuous integration and the documentation site are built and
+published for such a commit as well; only the release is skipped.
+
 The version of a push can be computed locally:
 
 ```bash

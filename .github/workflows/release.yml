@@ -56,6 +56,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # A commit that asks for no release is not released: the message
+          # carries the marker "[skip release]". A change that does not
+          # touch the package does not release it.
+          decision=$(git log -1 --pretty=%B | python3 .github/scripts/calver.py skip)
+          if [ "$decision" = "skip" ]; then
+            echo "The commit asks for no release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # A commit that carries a tag already is released by that tag: the
           # push of the tag runs this workflow on its own.
           tagged=$(git tag --points-at HEAD | grep -E '^(v)?[0-9]{4}\.(0[1-9]|1[0-2])\.[1-9][0-9]*$' | head -1 || true)
@@ -85,6 +95,9 @@ jobs:
 
       - name: The published version of the tag
         id: publish
+        # A commit that asks for no release carries no tag, so there is no
+        # version to publish.
+        if: steps.next.outputs.release != 'false'
         run: |
           tag="${{ steps.pushed.outputs.tag || steps.next.outputs.tag }}"
           version=$(python3 .github/scripts/calver.py publish "$tag")

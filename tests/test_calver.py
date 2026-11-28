@@ -70,6 +70,18 @@ def test_next_version_never_goes_back(calver: ModuleType) -> None:
     assert calver.next_version(["2027.01.1"], 2026, 11) == "2027.01.2"
 
 
+def test_a_commit_can_ask_for_no_release(calver: ModuleType) -> None:
+    """The marker in the message of a commit skips the release."""
+    assert calver.asks_for_no_release("docs: the contracts of the round [skip release]")
+    assert calver.asks_for_no_release("docs: the contracts of the round\n\n[skip release]\n")
+
+
+def test_a_commit_without_the_marker_is_released(calver: ModuleType) -> None:
+    """Every other commit is released."""
+    assert not calver.asks_for_no_release("docs: the contracts of the round")
+    assert not calver.asks_for_no_release("fix: skip the release of the tag")
+
+
 @pytest.fixture(scope="module")
 def calver() -> ModuleType:
     """Load the script of the release workflow as a module."""

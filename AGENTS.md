@@ -146,7 +146,8 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
   the discovery of secretspec — in that order.
 - The version of the package comes from the git tag and is never written into
   `pyproject.toml`. The tag is a CalVer tag, `YYYY.MM.N`. Every push to
-  `main` is tagged and released automatically. See `docs/release.md`.
+  `main` is tagged and released automatically, unless its message carries
+  `[skip release]`. See `docs/release.md`.
 - The documentation site is built and published on GitHub Pages by the
   workflow `.github/workflows/docs.yml` on every push to `main`. It lives at
   `https://jr2804.github.io/itu-t-documents/`; that address is written in

@@ -12,16 +12,23 @@ a human reads.
 Usage:
     python .github/scripts/calver.py next --tags 2026.10.3 2026.11.1
     python .github/scripts/calver.py publish 2026.11.1
+    git log -1 --pretty=%B | python .github/scripts/calver.py skip
 """
 
 from __future__ import annotations
 
 import argparse
 import re
+import sys
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
 
 VERSION = re.compile(r"^v?(?P<year>\d{4})\.(?P<month>0[1-9]|1[0-2])\.(?P<counter>[1-9]\d*)$")
+
+#: Marker in the message of a commit that asks for no release. A commit that
+#: carries it is not tagged and not published, so a change that does not
+#: change the package does not release it.
+SKIP_RELEASE = "[skip release]"
 
 
 def parse_version(version: str) -> tuple[int, int, int] | None:
@@ -62,6 +69,16 @@ def next_version(tags: Iterable[str], year: int, month: int) -> str:
     return f"{year:04d}.{month:02d}.{counter}"
 
 
+def asks_for_no_release(message: str) -> bool:
+    """Whether the message of a commit asks for no release.
+
+    The marker is "[skip release]": a commit that carries it is not tagged
+    and not published, so a change that does not touch the package does not
+    release it.
+    """
+    return SKIP_RELEASE in message
+
+
 def main() -> None:
     """Print the version of the next release or the published form of a tag."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -71,13 +88,18 @@ def main() -> None:
     following.add_argument("--date", default=None, help="the date of the release, YYYY-MM-DD (default: today, UTC)")
     publishing = commands.add_parser("publish", help="the published version of a tag")
     publishing.add_argument("version")
+    skipping = commands.add_parser("skip", help="whether the message of a commit asks for no release")
+    skipping.add_argument("--message", default=None, help="the message of the commit (default: standard input)")
     arguments = parser.parse_args()
 
     if arguments.command == "next":
         day = date.fromisoformat(arguments.date) if arguments.date else datetime.now(UTC).date()
         print(next_version(arguments.tags, day.year, day.month))
-    else:
+    elif arguments.command == "publish":
         print(published_version(arguments.version))
+    else:
+        message = arguments.message if arguments.message is not None else sys.stdin.read()
+        print("skip" if asks_for_no_release(message) else "release")
 
 
 if __name__ == "__main__":
