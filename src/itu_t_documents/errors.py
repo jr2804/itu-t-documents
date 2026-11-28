@@ -34,6 +34,17 @@ class IncompleteListingError(ItuError):
     """
 
 
+class InvalidDocumentError(ItuError):
+    """Raised when the answer of the ITU-T is not the document that was asked for.
+
+    The access policy of the DMS answers a protected document with a page of
+    its own when the session of the TIES account is not effective. That page
+    is served with the status code 200, so only the bytes of the answer tell
+    a document from the page — a file that was stored from it is a page with
+    the name of a document.
+    """
+
+
 class UnknownEntityError(ItuError):
     """Raised when an entity of the ITU-T structure does not exist.
 

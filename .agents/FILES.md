@@ -38,7 +38,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | Domain model           | `src/itu_t_documents/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `metadata.py`, `study_periods.py`, `enums.py` |
 | Page parsers           | `src/itu_t_documents/scraping/`                             | `listing.py`, `listing_rows.py`, `listing_navigation.py`, `meeting_page.py`, `detail.py`, `meetings.py`, `questions.py`, `catalogue.py`, `pages.py` |
 | The catalogue          | `src/itu_t_documents/catalogue.py`                          | `ItuCatalogue`; `catalogue_search.py` (`CatalogueEntry`) |
-| The errors             | `src/itu_t_documents/errors.py`                             | `ItuError`, `AccessDeniedError`, `ScrapingError`, `UnknownEntityError` |
+| The errors             | `src/itu_t_documents/errors.py`                             | `ItuError`, `AccessDeniedError`, `InvalidDocumentError`, `ScrapingError`, `UnknownEntityError` |
 | TIES handshake         | `src/itu_t_documents/auth/ties.py`                           | `TiesAuthenticator`, `AuthenticationError`     |
 | HTTP access            | `src/itu_t_documents/http/client.py`                        | `ItuHttpClient`, `ItuClient`, `decode`          |
 | Configuration           | `src/itu_t_documents/config/settings.py`                    | `Settings`, `TomlConfigSource`                  |

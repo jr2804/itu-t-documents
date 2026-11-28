@@ -14,14 +14,14 @@ from sqlmodel import select
 from itu_t_documents import fetching
 from itu_t_documents.api import ItuDocuments
 from itu_t_documents.config.settings import Settings
-from itu_t_documents.errors import AccessDeniedError, AuthenticationError, IncompleteListingError, ScrapingError
+from itu_t_documents.errors import AccessDeniedError, AuthenticationError, IncompleteListingError, InvalidDocumentError, ScrapingError
 from itu_t_documents.models.documents import DocumentRef, MeetingId
 from itu_t_documents.models.enums import DocFormat, DocLanguage, DocType
 from itu_t_documents.models.metadata import DocumentMetadata
 from itu_t_documents.models.study_periods import StudyPeriod
 from itu_t_documents.storage.database import MetadataStore
 from itu_t_documents.storage.tables import DocumentRow
-from tests.fakes import DOCUMENT_BYTES, FakeClient
+from tests.fakes import DOCUMENT_BYTES, POLICY_PAGE, FakeClient
 
 PERIOD = StudyPeriod(start_year=2025, end_year=2028)
 
@@ -336,6 +336,28 @@ def test_download_a_document_that_is_gone(api: ItuDocuments, fake_client: FakeCl
         api.download(DocumentRef.parse("T25-SG12-C-0192"), DocFormat.WORD, DocLanguage.ENGLISH)
 
 
+def test_download_refuses_the_page_of_the_access_policy(api: ItuDocuments, fake_client: FakeClient) -> None:
+    """The page of the access policy is not a document and is not stored as one."""
+    fake_client.policy_page = True
+
+    with pytest.raises(InvalidDocumentError, match="was not downloaded"):
+        api.download(DocumentRef.parse("T25-SG12-C-0192"), DocFormat.WORD, DocLanguage.ENGLISH)
+
+    assert not (api.cache.root_dir / "T25-SG12-C-0192").exists()
+
+
+def test_a_cached_page_of_the_access_policy_is_downloaded_again(api: ItuDocuments) -> None:
+    """A file that an older release cached from the access policy is not handed out."""
+    ref = DocumentRef.parse("T25-SG12-C-0192")
+    cached = api.cache.path_for(ref, DocFormat.WORD, DocLanguage.ENGLISH)
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    cached.write_bytes(POLICY_PAGE)
+
+    downloaded = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
+
+    assert downloaded.read_bytes() == DOCUMENT_BYTES
+
+
 def test_fetch_documents_of_a_listing_whose_next_link_loops(
     api: ItuDocuments, fake_client: FakeClient, monkeypatch: pytest.MonkeyPatch, fixtures_dir: Path
 ) -> None:
@@ -412,13 +434,13 @@ def test_download_writes_a_cached_document_to_an_output_path(tmp_path: Path, fak
         subtype="GEN",
         meeting=MeetingId.from_code("261015"),
     )
-    api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, b"cached")
+    api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, DOCUMENT_BYTES)
     output = tmp_path / "out" / "document.docx"
 
     path = api.download(document, DocFormat.WORD, DocLanguage.ENGLISH, output_file=output)
 
     assert path == output
-    assert output.read_bytes() == b"cached"
+    assert output.read_bytes() == DOCUMENT_BYTES
 
 
 def test_download_serves_a_cached_document(tmp_path: Path, fake_client: FakeClient) -> None:
@@ -436,11 +458,11 @@ def test_download_serves_a_cached_document(tmp_path: Path, fake_client: FakeClie
         meeting=MeetingId.from_code("261015"),
     )
 
-    api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, b"cached")
+    api.cache.store(document, DocFormat.WORD, DocLanguage.ENGLISH, DOCUMENT_BYTES)
 
     path = api.download(document, DocFormat.WORD, DocLanguage.ENGLISH)
 
-    assert path.read_bytes() == b"cached"
+    assert path.read_bytes() == DOCUMENT_BYTES
 
 
 def test_sync_questions(api: ItuDocuments) -> None:
@@ -479,7 +501,7 @@ def test_download_uses_the_cache(tmp_path: Path, fake_client: FakeClient) -> Non
     )
 
     path = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
-    assert path.read_bytes() == b"document-bytes"
+    assert path.read_bytes() == DOCUMENT_BYTES
     assert client.requested
 
     again = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH)
@@ -505,7 +527,7 @@ def test_download_writes_to_an_output_path(tmp_path: Path, fake_client: FakeClie
     path = api.download(ref, DocFormat.WORD, DocLanguage.ENGLISH, output_file=output)
 
     assert path == output
-    assert output.read_bytes() == b"document-bytes"
+    assert output.read_bytes() == DOCUMENT_BYTES
 
 
 def test_download_of_an_unavailable_rendition(tmp_path: Path, fake_client: FakeClient) -> None:

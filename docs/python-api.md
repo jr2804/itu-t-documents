@@ -138,8 +138,10 @@ path = api.download(
 ```
 
 It raises `FileNotFoundError` when the DMS has no rendition in that format and
-language, `AuthenticationError` when there are no usable credentials, and
-`AccessDeniedError` when the account may not see the document.
+language, `AuthenticationError` when there are no usable credentials,
+`AccessDeniedError` when the account may not see the document, and
+`InvalidDocumentError` when the DMS answers with something else than the
+document — the page of its access policy, most likely.
 
 ### The catalogue
 
@@ -288,7 +290,9 @@ Every error of the package derives from `ItuError`:
 | `AuthenticationError` | The TIES login did not succeed |
 | `AccessDeniedError` | The account may not see the document |
 | `IncompleteListingError` | A listing holds fewer documents than it reports |
+| `InvalidDocumentError` | The DMS answered with something else than the document |
 | `UnknownEntityError` | The catalogue does not know the entity |
+| `ScrapingError` | A page of the ITU-T could not be read |
 
 `download` also raises the built-in `FileNotFoundError` when the DMS has no
 rendition that matches the requested format and language. That one is not an

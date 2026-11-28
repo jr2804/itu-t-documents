@@ -10,12 +10,25 @@ import httpx
 
 from itu_t_documents.http.client import ItuClient
 from itu_t_documents.models.documents import _DOCUMENT_ID_RE
+from itu_t_documents.models.enums import DocFormat
 
-#: The bytes a fake document download returns.
-DOCUMENT_BYTES = b"document-bytes"
+#: The bytes a fake document download returns. The first bytes tell the
+#: format of the file, and a download checks them.
+DOCUMENT_BYTES = b"PK\x03\x04document-bytes"
+
+#: The bytes a fake document download returns for each format.
+FORMAT_BYTES: dict[DocFormat, bytes] = {
+    DocFormat.WORD: DOCUMENT_BYTES,
+    DocFormat.PDF: b"%PDF-1.4 document-bytes",
+    DocFormat.ZIP: DOCUMENT_BYTES,
+    DocFormat.HTML: b"<html>document</html>",
+}
 
 #: The page the access policy answers for a document outside the membership.
 DENIED_PAGE = b"<html><body><h2>401 - Unauthorized: Access is denied due to invalid credentials.</h2></body></html>"
+
+#: The page the access policy answers with when the session is not effective.
+POLICY_PAGE = b"<!DOCTYPE html><html><body>Access policy evaluation is already in progress</body></html>"
 
 
 class FakeClient(ItuClient):
@@ -32,6 +45,7 @@ class FakeClient(ItuClient):
         self.login_targets: list[str] = []
         self.denied = False
         self.missing = False
+        self.policy_page = False
         self.session = httpx.Client(
             transport=httpx.MockTransport(self._document_handler()),
             follow_redirects=True,
@@ -104,7 +118,9 @@ class FakeClient(ItuClient):
                 return httpx.Response(401, content=DENIED_PAGE, headers={"content-type": "text/html"})
             if self.missing:
                 return httpx.Response(404, content=b"not found")
-            return httpx.Response(200, content=DOCUMENT_BYTES)
+            if self.policy_page:
+                return httpx.Response(200, content=POLICY_PAGE, headers={"content-type": "text/html"})
+            return httpx.Response(200, content=FORMAT_BYTES[_format_of(str(request.url))])
 
         return handler
 
@@ -142,3 +158,18 @@ class FakeClient(ItuClient):
         page = self._read(name)
         count = page.count('name="chkFile"') if reported_count is None else reported_count
         return re.sub(r"(Results:<strong>)\d+(</strong>)", rf"\g<1>{count}\g<2>", page)
+
+
+def _format_of(url: str) -> DocFormat:
+    """Return the format a download URL asks for.
+
+    Args:
+        url: The URL of the download.
+
+    Returns:
+        The format, or the Word format when the URL names none.
+    """
+    match = re.search(r"!!([A-Z]+)-[A-Z]\.", url)
+    if match is None:
+        return DocFormat.WORD
+    return DocFormat.parse(match.group(1)) or DocFormat.WORD

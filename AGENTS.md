@@ -128,6 +128,8 @@ _Always-injected_ — keep minimal. Everything else → `.agents/` files.
 - The metadata store may have been written by an older release: every change of
   the schema needs a migration in `storage/migrations.py`, because
   `create_all` only creates the missing tables.
+- A download checks the bytes of the answer before it stores it: the access
+  policy of the DMS answers a protected document with a page and the status 200.
 - A listing and a detail page tell different things about a document. The store
   adds what each of them tells (`store_document`, `store_detail`); neither may
   erase what the other told.
