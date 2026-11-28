@@ -74,4 +74,3 @@
 sync:
     remote: "git+https://github.com/jr2804/itu-t-documents"
 
-# remote: "git+https://github.com/jr2804/itu-t-documents"

@@ -49,6 +49,26 @@ omnidiff --headless before.png after.png # plain text output for scripts/CI
 `omnidiff --help` lists every mode; `omnidiff git configure` wires it in as
 Git's difftool.
 
+### Beads
+
+The issue tracker keeps its issues in a local Dolt database (`.beads/`) and
+syncs them to the upstream repository: the data travels in the reference
+`refs/dolt/data` of the same git remote, so a clone carries the issues with
+it.
+
+```shell
+bd ready                       # the work that can be picked up
+bd sync                        # pull, check for conflicts, push
+bd bootstrap                   # hydrate a fresh clone from the remote
+bd dolt remote list            # the Dolt remote the sync uses
+```
+
+The `beads` MCP server runs `mise x --command beads-mcp`, and the tool has to
+be resolvable **outside** the project directory as well: an editor or a
+harness may start the server from anywhere, and `mise x` then falls back to
+the global configuration. `mise use -g pipx:beads-mcp@1.3.4` sets it, and `bd`
+and `dolt` are global for the same reason.
+
 ## MCP servers
 
 Declared in the gitignored `.mcp.json` by `mise run add-mcp-servers <agent>`,
