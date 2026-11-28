@@ -1,0 +1,76 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The Pages site is read to find out its base path and its URL.
+      pages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.13"
+
+      # The builder is a tool, not a dependency of the package, so it runs
+      # outside the project environment. The versions are the ones of the
+      # "mise docs" task in ".config/mise/conf.d/docs.toml": the builder and
+      # the plugins it needs — mkdocstrings renders the API reference,
+      # markdown-exec executes the examples and markdown-callouts provides
+      # the callout extension.
+      #
+      # The build is strict: a broken link or a missing page fails the run
+      # instead of shipping.
+      - name: Build the site
+        run: |
+          uvx --python 3.13 \
+            --with zensical==0.1.3 \
+            --with 'mkdocstrings[python]>=0.29' \
+            --with 'markdown-exec>=1.8' \
+            --with 'markdown-callouts>=0.4' \
+            zensical build --strict
+
+      - name: Check the site
+        run: |
+          test -f site/index.html
+          ls site
+
+      - uses: actions/configure-pages@v6
+        id: pages
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/
+
+  deploy:
+    name: Publish the site
+    needs: build
+    # Only the main branch is published. A pull request only proves that the
+    # site builds.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

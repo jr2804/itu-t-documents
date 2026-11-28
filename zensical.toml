@@ -2,8 +2,10 @@
 site_name = "ITU-T Documents"
 site_description = "Download and query ITU-T meeting documents (contributions, temporary documents, collective letters, reports) via API, CLI and MCP."
 site_author = "Jan.Reimes"
-# site_url and repo_url: set these once your repository is hosted
-# site_url = "https://example.com/itu-t-documents"
+# The site is published by the workflow ".github/workflows/docs.yml" on
+# GitHub Pages. The URL is the address of the pages of this repository and
+# is used for the canonical links and the sitemap.
+site_url = "https://jr2804.github.io/itu-t-documents/"
 repo_url = "https://github.com/jr2804/itu-t-documents"
 copyright = "Copyright &copy; 2026 Jan.Reimes"
 nav = [

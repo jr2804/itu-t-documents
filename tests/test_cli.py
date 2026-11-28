@@ -166,6 +166,15 @@ class _SettingsWithoutCredentials:
         return False
 
 
+def test_the_default_command_names_the_documentation(capsys: pytest.CaptureFixture[str]) -> None:
+    """The default command introduces the package and where its documentation lives."""
+    startup.default()
+
+    out = capsys.readouterr().out
+    assert "itu-t-documents" in out
+    assert "https://jr2804.github.io/itu-t-documents/" in out
+
+
 def test_meetings_command(fake_api: FakeApi, capsys: pytest.CaptureFixture[str]) -> None:
     """The meetings command lists the meetings of a study group."""
     commands.meetings(study_group=12, study_period="2025-2028")

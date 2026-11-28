@@ -42,6 +42,15 @@ itu-t-documents = "itu_t_documents.cli.app:main"
 [project.optional-dependencies]
 secretspec = ["secretspec>=0.21.1"]
 
+[project.urls]
+# The links of the project page on PyPI. The documentation is published on
+# GitHub Pages by the workflow ".github/workflows/docs.yml".
+Homepage = "https://jr2804.github.io/itu-t-documents/"
+Documentation = "https://jr2804.github.io/itu-t-documents/"
+Source = "https://github.com/jr2804/itu-t-documents"
+Issues = "https://github.com/jr2804/itu-t-documents/issues"
+Changelog = "https://github.com/jr2804/itu-t-documents/releases"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/itu_t_documents"]
 exclude = ["/src/itu_t_documents/mcp/AGENTS.md"]

@@ -35,6 +35,8 @@ the Python API in [references/api.md](references/api.md). The vocabulary of the
 ITU-T — identifiers, study periods, questions, formats, languages — is in
 [references/domain.md](references/domain.md), and the errors that a user hits
 and what they mean in [references/troubleshooting.md](references/troubleshooting.md).
+The full documentation is published at
+<https://jr2804.github.io/itu-t-documents/>.
 
 ## Quick start
 

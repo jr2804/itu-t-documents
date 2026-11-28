@@ -32,6 +32,7 @@ Kept compact — agents hallucinate less when they know where definitions live.
 | The agent skill         | `skills/itu-t-documents/`                                       | `SKILL.md`, `references/` — how to use the package |
 | The site navigation     | `zensical.toml`                                                 | `[project] nav`                                 |
 | CI and release         | `.github/workflows/`                                            | `ci.yml`, `release.yml`                         |
+| The documentation site | `.github/workflows/docs.yml`, `zensical.toml`                    | `site_url` — published on GitHub Pages          |
 | Release changelog      | `.github/scripts/release_notes.py`                              | `release_notes.py`                              |
 | Release versioning    | `.github/scripts/calver.py`                                    | `next_version`, `published_version`            |
 | Domain model           | `src/itu_t_documents/models/`                               | `documents.py`, `questions.py`, `catalogue.py`, `metadata.py`, `study_periods.py`, `enums.py` |

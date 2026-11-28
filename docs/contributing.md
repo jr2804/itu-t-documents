@@ -64,6 +64,19 @@ statically — so the runtime dependencies are not needed to build the
 documentation. The versions of the builder and its plugins live in
 `.config/mise/conf.d/docs.toml`, next to the other tools of the project.
 
+### The published site
+
+The site is published on GitHub Pages at
+<https://jr2804.github.io/itu-t-documents/>. The workflow
+`.github/workflows/docs.yml` builds it the same way — strictly, so that a
+broken link fails the run — on every push to `main` and on every pull
+request. A pull request only proves that the site builds; a push to `main`
+publishes it.
+
+The address of the site is written in three places: `site_url` in
+`zensical.toml`, the links of the README and the links of the package
+metadata in `pyproject.toml`. Change all three together.
+
 ### Pull Requests
 
 1. Fork the repository

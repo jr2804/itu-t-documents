@@ -10,6 +10,10 @@ __author__ = "Jan.Reimes"
 __email__ = "github@jan-reimes.de"
 __license__ = "MIT"
 __copyright__ = "Copyright 2026, Jan.Reimes"
+# The repository of the package and the site its documentation is published
+# on. The site is built by the workflow ".github/workflows/docs.yml".
+__url__ = "https://github.com/jr2804/itu-t-documents"
+__docs_url__ = "https://jr2804.github.io/itu-t-documents/"
 
 try:
     __version__ = version("itu-t-documents")

@@ -6,6 +6,7 @@
   <a href="https://github.com/jr2804/itu-t-documents/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jr2804/itu-t-documents/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-5a5a5a.svg"></a>
   <img alt="Python 3.13 or newer" src="https://img.shields.io/badge/python-3.13%2B-3776ab?logo=python">
+  <a href="https://jr2804.github.io/itu-t-documents/"><img alt="Documentation" src="https://img.shields.io/badge/documentation-jr2804.github.io-0e7490"></a>
 </p>
 
 The documents of the ITU-T study groups live in the ITU-T Document Management
@@ -181,7 +182,7 @@ Four facts make the package behave the way it does:
   answered from the database.
 
 The URL layout, the numbering scheme and the authentication chain of the DMS
-are written up in [the reference](docs/reference/itu-dms.md).
+are written up in [the reference](https://jr2804.github.io/itu-t-documents/reference/itu-dms/).
 
 ## The three interfaces
 
@@ -234,7 +235,7 @@ export ITU_T_DOCUMENTS_OUTPUT_FILE=~/Documents/itu
 ```
 
 Every command and every option is documented in
-[the guide to the command line](docs/cli.md).
+[the guide to the command line](https://jr2804.github.io/itu-t-documents/cli/).
 
 ### Python API
 
@@ -275,7 +276,7 @@ with ItuCatalogue() as catalogue:
     # UnknownEntityError: SG12 has no question Q99/12
 ```
 
-See [the guide to the Python API](docs/python-api.md) for the models, the
+See [the guide to the Python API](https://jr2804.github.io/itu-t-documents/python-api/) for the models, the
 metadata store, the file cache and the errors.
 
 ### MCP server
@@ -309,7 +310,7 @@ Register it with an agent:
 claude mcp add itu-t-documents -- itu-t-documents mcp
 ```
 
-See [the guide to the MCP server](docs/mcp.md).
+See [the guide to the MCP server](https://jr2804.github.io/itu-t-documents/mcp/).
 
 ## Document identifiers
 
@@ -385,7 +386,7 @@ itu-t-documents: T25-SG13-C-0001 is not accessible with these credentials; the m
 ```
 
 The configuration file, the secretspec provider and every way to store a
-password are described in [getting started](docs/getting-started.md).
+password are described in [getting started](https://jr2804.github.io/itu-t-documents/getting-started/).
 
 ## Caches
 
@@ -414,18 +415,21 @@ of the configuration file.
 
 ## Documentation
 
-The full documentation lives in [`docs/`](docs/index.md) and is built with
-[zensical](https://github.com/jr2804/zensical).
+The documentation is published at
+**[https://jr2804.github.io/itu-t-documents](https://jr2804.github.io/itu-t-documents/)**. Every push to `main` rebuilds it and publishes it on
+GitHub Pages; the Markdown in
+[`docs/`](https://github.com/jr2804/itu-t-documents/tree/main/docs) is its
+source, and [zensical](https://github.com/jr2804/zensical) builds it.
 
 | Page | What it holds |
 |------|---------------|
-| [Getting started](docs/getting-started.md) | installing the package, the TIES account, the first steps, troubleshooting |
-| [The command line](docs/cli.md) | every command and every option |
-| [The Python API](docs/python-api.md) | the API, the models, the catalogue, the caches, the errors |
-| [The MCP server](docs/mcp.md) | the tools and the questions they answer |
-| [The catalogue of the ITU-T](docs/catalogue.md) | the study periods, the study groups, the working groups, the questions |
-| [The ITU-T DMS](docs/reference/itu-dms.md) | the URL layout and the numbering scheme, as they were measured |
-| [API reference](docs/reference/api.md) | the generated reference of every public class and function |
+| [Getting started](https://jr2804.github.io/itu-t-documents/getting-started/) | installing the package, the TIES account, the first steps, troubleshooting |
+| [The command line](https://jr2804.github.io/itu-t-documents/cli/) | every command and every option |
+| [The Python API](https://jr2804.github.io/itu-t-documents/python-api/) | the API, the models, the catalogue, the caches, the errors |
+| [The MCP server](https://jr2804.github.io/itu-t-documents/mcp/) | the tools and the questions they answer |
+| [The catalogue of the ITU-T](https://jr2804.github.io/itu-t-documents/catalogue/) | the study periods, the study groups, the working groups, the questions |
+| [The ITU-T DMS](https://jr2804.github.io/itu-t-documents/reference/itu-dms/) | the URL layout and the numbering scheme, as they were measured |
+| [API reference](https://jr2804.github.io/itu-t-documents/reference/api/) | the generated reference of every public class and function |
 
 ### For AI agents
 
@@ -437,7 +441,7 @@ user hits.
 bun x skills add https://github.com/jr2804/itu-t-documents
 ```
 
-It lives in [`skills/itu-t-documents/`](skills/itu-t-documents/SKILL.md) and
+It lives in [`skills/itu-t-documents/`](https://github.com/jr2804/itu-t-documents/tree/main/skills/itu-t-documents) and
 is verified with
 [skill-check](https://github.com/thedaviddias/skill-check).
 
@@ -455,9 +459,9 @@ mise lint         # ruff
 mise all          # test, lint, spell, format, format-md and docs in one pass
 ```
 
-The [contributing guide](docs/contributing.md) describes the setup, the
+The [contributing guide](https://jr2804.github.io/itu-t-documents/contributing/) describes the setup, the
 quality gates and the conventions of the project, and the
-[code of conduct](docs/code_of_conduct.md) says how to behave in it.
+[code of conduct](https://jr2804.github.io/itu-t-documents/code_of_conduct/) says how to behave in it.
 
 ## Development
 
@@ -477,7 +481,7 @@ quality gates and the conventions of the project, and the
 The version of the package is a [CalVer](https://calver.org/) version —
 `YYYY.MM.N`, e.g. `2026.11.1` — and it is derived from the git tag, never
 written into `pyproject.toml`. Every push to `main` is a release; the
-procedure is documented in [docs/release.md](docs/release.md).
+procedure is documented in [the release guide](https://jr2804.github.io/itu-t-documents/release/).
 
 ### Built with
 
@@ -502,7 +506,7 @@ procedure is documented in [docs/release.md](docs/release.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](https://github.com/jr2804/itu-t-documents/blob/main/LICENSE) for details.
 
 ---
 

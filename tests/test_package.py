@@ -20,6 +20,12 @@ def test_package_exposes_version() -> None:
     assert __about__.__title__ == "itu_t_documents"
 
 
+def test_package_names_its_home_and_its_documentation() -> None:
+    """The metadata names the repository and the site of the documentation."""
+    assert __about__.__url__ == "https://github.com/jr2804/itu-t-documents"
+    assert __about__.__docs_url__ == "https://jr2804.github.io/itu-t-documents/"
+
+
 def test_package_exports_the_public_api() -> None:
     """The package exports the objects of the public API."""
     assert itu_t_documents.ItuDocuments.__name__ == "ItuDocuments"

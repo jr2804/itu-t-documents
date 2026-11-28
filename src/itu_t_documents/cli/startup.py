@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from importlib import import_module
 
+from itu_t_documents.__about__ import __docs_url__
 from itu_t_documents.config.settings import Settings
 from itu_t_documents.errors import AuthenticationError
 from itu_t_documents.http.client import ItuHttpClient
@@ -17,6 +18,7 @@ def default() -> None:
     """Show a short introduction to the ITU-T documents."""
     print("itu-t-documents — access the documents of ITU-T study group meetings.")
     print("Use --help to see the available commands.")
+    print(f"Documentation: {__docs_url__}")
 
 
 def mcp() -> None:

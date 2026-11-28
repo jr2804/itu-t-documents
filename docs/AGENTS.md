@@ -49,6 +49,9 @@ written by hand.
   `itu-t-documents` and the Python package is `itu_t_documents`. The
   distribution on PyPI is `itu-t-documents`, the repository is
   `github.com/jr2804/itu-t-documents`.
+- The site is published at <https://jr2804.github.io/itu-t-documents/>. The
+  address is written in `zensical.toml` (`site_url`), in the README and in the
+  links of the package metadata; change it in all three.
 - The caches live in `~/.cache/itu-t-documents`, the configuration in
   `~/.config/itu-t-documents`, and the environment variables are prefixed
   with `ITU_`.
@@ -84,6 +87,10 @@ mise format-md     # lint the Markdown
 The build is strict about broken links and missing pages: `zensical build
 --strict` turns every warning into an error. Run it before opening a pull
 request, and check the built site under `site/` for the pages you touched.
+
+The workflow `.github/workflows/docs.yml` builds the site the same way and
+publishes it on GitHub Pages after every push to `main`. A pull request only
+builds it — it proves that the site builds, it does not publish it.
 
 ## Child DOX Index
 
